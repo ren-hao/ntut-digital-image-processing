@@ -29,6 +29,7 @@ namespace control_server
         {
             StartServer();
             button1.Enabled = false;
+            groupBox2.Enabled = true;
         }
 
         /// <summary>   Starts a server. </summary>
@@ -52,7 +53,7 @@ namespace control_server
                 return;
             }
             
-            _server.SendToAll("["+GetLeftValue() + ", "+ GetRightValue() +"]");
+            _server.SendToAll("{\"op\":\"move\",\"data\":["+GetLeftValue() + ", "+ GetRightValue() +"]}");
         }
 
         /// <summary>   Gets left value. </summary>
@@ -71,6 +72,17 @@ namespace control_server
         {
             // TODO:  fetch from camera
             return _rightBar.Value;
+        }
+
+        private void SendDonateMoney(int money)
+        {
+            _server.SendToAll("{\"op\":\"donate\",\"data\":"+money+"}");
+        }
+
+        private void buttonDonate_Click(object sender, EventArgs e)
+        {
+            int money = int.Parse(((Button)sender).Text);
+            SendDonateMoney(money);
         }
     }
 }
