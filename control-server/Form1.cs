@@ -38,9 +38,8 @@ namespace control_server
         private Image<Bgr, Byte> _resultImage;
         private Mat _captureFrame;
         private Mat _captureObservedFrame = new Mat();
-        private int moneyInScreen = 0;
         private const int CAM_ID = 0;
-        private String[] b = new String[] { "100_0", "200_0", "500_0", "1000_0", "2000_0" };
+        private DrawMatches _momeyMatches = new DrawMatches(WIDTH, HEIGHT);
         // property
 
         public Form1()
@@ -52,8 +51,6 @@ namespace control_server
 
             // 用圖片當 observation
             //DrawMatches.DetectBillInScreen("resources/test1000.jpg", b, WIDTH, HEIGHT);
-            moneyInScreen = DrawMatches.GetMoneyInScreen();
-            Console.WriteLine(moneyInScreen.ToString());
         }
 
         private void Form1_Closing(object sender, CancelEventArgs e)
@@ -246,12 +243,14 @@ namespace control_server
                     using (Mat _grayFrame = new Mat())
                     {
                         CvInvoke.CvtColor(_sourceFrame, _grayFrame, ColorConversion.Bgr2Gray);
-                        _resultPictureBox.Image = DrawMatches.DetectBillInScreen(_grayFrame, ref b, WIDTH, HEIGHT).Bitmap;
+                        var tmpImage = _momeyMatches.DetectBillInScreen(_grayFrame);
+                        _resultPictureBox.Image = tmpImage.Bitmap;
                         _resultPictureBox.Refresh();
+                        ReleaseImage(ref tmpImage);
                         _isDetectorProcessing = false;
                     }
 
-                    Console.WriteLine("Currently Point: " + DrawMatches.GetMoneyInScreen().ToString());
+                    Console.WriteLine("Currently Point: " + _momeyMatches.GetMoneyInScreen().ToString());
                 }
             });
 
