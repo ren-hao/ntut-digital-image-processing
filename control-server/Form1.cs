@@ -41,6 +41,14 @@ namespace control_server
         private int moneyInScreen = 0;
         private const int CAM_ID = 0;
         private String[] b = new String[] { "100_0", "200_0", "500_0", "1000_0", "2000_0" };
+
+        private bool _shouldHandleMouseDown = false;
+        private Point _clickPoint;
+        private CamShiftTracking _trackingObj = null;
+        Rectangle _drawRect = Rectangle.Empty;
+        private bool _isMouseDown = false;
+
+
         // property
 
         public Form1()
@@ -200,11 +208,13 @@ namespace control_server
                 _sourcePictureBox.Image = _resultPictureBox.Image = null;
                 _sourcePictureBox.Refresh();
                 _resultPictureBox.Refresh();
+                _shouldHandleMouseDown = false;
             }
             else
             {
                 _openCameraButton.Enabled = false;
                 _openCameraButton.Text = "停止攝影機";
+                //_captureTimer.Enabled = true;
                 _capture = new VideoCapture(CAM_ID);
 
                 _capture.SetCaptureProperty(Emgu.CV.CvEnum.CapProp.AutoExposure, 0);
@@ -215,6 +225,7 @@ namespace control_server
 
                 _captureFrame = new Mat();
                 _openCameraButton.Enabled = true;
+                _shouldHandleMouseDown = true;
 
                 if (_capture != null)
                 {
@@ -251,6 +262,47 @@ namespace control_server
                 }
             });
 
+        }
+
+        private void _sourcePictureBox_MouseDown(object sender, MouseEventArgs e)
+        {
+            if (!_shouldHandleMouseDown) return;
+            _clickPoint = _sourcePictureBox.PointToClient(Cursor.Position);
+            _isMouseDown = true;
+
+        }
+        private void SetTrackObject()
+        {
+            if (!_shouldHandleMouseDown) return;
+
+            if (_trackingObj != null) _trackingObj.Dispose();
+
+            _trackingObj = new CamShiftTracking(_captureFrame.ToImage<Bgr, byte>(), _drawRect);
+        }
+
+        private void _sourcePictureBox_MouseUp(object sender, MouseEventArgs e)
+        {
+            if (!_shouldHandleMouseDown || !_isMouseDown) return;
+
+            SetTrackObject();
+            _isMouseDown = false;
+        }
+
+        private void _sourcePictureBox_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (!_shouldHandleMouseDown || !_isMouseDown) return;
+
+            Point curPoint = _sourcePictureBox.PointToClient(Cursor.Position);
+            _drawRect = GetRectFromPoint(curPoint, _clickPoint);
+            Console.WriteLine("Move");
+        }
+        private Rectangle GetRectFromPoint(Point p1, Point p2)
+        {
+            int left = Math.Min(p1.X, p2.X);
+            int top = Math.Min(p1.Y, p2.Y);
+            int width = Math.Abs(p1.X - p2.X);
+            int height = Math.Abs(p1.Y - p2.Y);
+            return new Rectangle(left, top, width, height);
         }
     }
 }
