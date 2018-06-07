@@ -112,7 +112,7 @@ namespace control_server
         /// <param name="observedImage">The observed image</param>
         /// <param name="matchTime">The output total time for computing the homography matrix.</param>
         /// <returns>The model image and observed image, the matched features and homography projection.</returns>
-        public static (Mat, Point[]) Draw(Mat modelImage, Mat observedImage)
+        public static Tuple<Mat, Point[]> Draw(Mat modelImage, Mat observedImage)
         {
             Point[] points = null;
             Mat homography;
@@ -154,7 +154,7 @@ namespace control_server
                 }
                 #endregion
                 
-                return (result, points);
+                return new Tuple<Mat, Point[]>(result, points);
             }
         }
 
