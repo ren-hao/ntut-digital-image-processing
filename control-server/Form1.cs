@@ -243,10 +243,14 @@ namespace control_server
                 using (Mat _sourceFrame = _captureFrame.Clone())
                 {
                     _isDetectorProcessing = true;
-                    Mat _grayFrame = new Mat();
-                    CvInvoke.CvtColor(_sourceFrame, _grayFrame, ColorConversion.Bgr2Gray);
-                    _resultPictureBox.Image = DrawMatches.DetectBillInScreen(_grayFrame, ref b, WIDTH, HEIGHT).Bitmap;
-                    _isDetectorProcessing = false;
+                    using (Mat _grayFrame = new Mat())
+                    {
+                        CvInvoke.CvtColor(_sourceFrame, _grayFrame, ColorConversion.Bgr2Gray);
+                        _resultPictureBox.Image = DrawMatches.DetectBillInScreen(_grayFrame, ref b, WIDTH, HEIGHT).Bitmap;
+                        _resultPictureBox.Refresh();
+                        _isDetectorProcessing = false;
+                    }
+
                     Console.WriteLine("Currently Point: " + DrawMatches.GetMoneyInScreen().ToString());
                 }
             });

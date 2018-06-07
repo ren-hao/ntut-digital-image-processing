@@ -152,7 +152,6 @@ namespace control_server
             long matchTime;
             moneyInScreen = 0;
             Point[][] pointArray = new Point[5][];
-
             Mat test = new Mat();
             for (int i = 0; i < b.Length; i++)
             {
