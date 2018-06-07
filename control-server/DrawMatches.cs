@@ -10,30 +10,46 @@ using Emgu.CV.Flann;
 using Emgu.CV.Structure;
 using Emgu.CV.Util;
 using Emgu.CV.UI;
+using System.Threading.Tasks;
+using System.Linq;
 
 namespace control_server
 {
-    public static class DrawMatches
+    public class DrawMatches : IDisposable
     {
-        private static Point[] points;
-        private static int moneyInScreen;
+        private readonly int WIDTH;
+        private readonly int HEIGHT;
 
-        public static Point[] GetPs()
+        private int _moneyInScreen = 0;
+        private readonly Dictionary<string, Mat> _modelImages;
+        private static String[] b = new String[] { "100_0", "200_0", "500_0", "1000_0", "2000_0" };
+
+        public DrawMatches(int width, int height)
         {
-            return points;
+            WIDTH = width;
+            HEIGHT = height;
+
+            _modelImages = new Dictionary<string, Mat>();
+            foreach(var path in b)
+            {
+                var bill = "resources/" + path + ".jpg";
+                Mat modelImage = CvInvoke.Imread(bill, ImreadModes.Grayscale);
+                CvInvoke.Resize(modelImage, modelImage, new Size(WIDTH, HEIGHT));
+                _modelImages.Add(path, modelImage);
+            }
         }
 
-        public static int GetMoneyInScreen()
+        public int GetMoneyInScreen()
         {
-            return moneyInScreen;
+            return _moneyInScreen;
         }
 
-        public static void FindMatch(Mat modelImage, Mat observedImage, out long matchTime, out VectorOfKeyPoint modelKeyPoints, out VectorOfKeyPoint observedKeyPoints, VectorOfVectorOfDMatch matches, out Mat mask, out Mat homography)
+        private static void FindMatch(Mat modelImage, Mat observedImage, out VectorOfKeyPoint modelKeyPoints, out VectorOfKeyPoint observedKeyPoints, VectorOfVectorOfDMatch matches, out Mat mask, out Mat homography)
         {
             int k = 2;
             double uniquenessThreshold = 0.80;
 
-            Stopwatch watch;
+            //Stopwatch watch;
             homography = null;
 
             modelKeyPoints = new VectorOfKeyPoint();
@@ -50,7 +66,7 @@ namespace control_server
                 //featureDetector.DetectAndCompute(uModelImage, null, modelKeyPoints, modelDescriptors, false);
                 surf.DetectAndCompute(uModelImage, null, modelKeyPoints, modelDescriptors, false);
 
-                watch = Stopwatch.StartNew();
+                //watch = Stopwatch.StartNew();
 
                 // extract features from the observed image
                 Mat observedDescriptors = new Mat();
@@ -83,10 +99,10 @@ namespace control_server
                                 observedKeyPoints, matches, mask, 2);
                     }
                 }
-                watch.Stop();
+                //watch.Stop();
 
             }
-            matchTime = watch.ElapsedMilliseconds;
+            //matchTime = watch.ElapsedMilliseconds;
         }
 
         /// <summary>
@@ -96,24 +112,24 @@ namespace control_server
         /// <param name="observedImage">The observed image</param>
         /// <param name="matchTime">The output total time for computing the homography matrix.</param>
         /// <returns>The model image and observed image, the matched features and homography projection.</returns>
-        public static Mat Draw(Mat modelImage, Mat observedImage, out long matchTime)
+        public static (Mat, Point[]) Draw(Mat modelImage, Mat observedImage)
         {
-            points = null;
+            Point[] points = null;
             Mat homography;
             VectorOfKeyPoint modelKeyPoints;
             VectorOfKeyPoint observedKeyPoints;
             using (VectorOfVectorOfDMatch matches = new VectorOfVectorOfDMatch())
             {
                 Mat mask;
-                FindMatch(modelImage, observedImage, out matchTime, out modelKeyPoints, out observedKeyPoints, matches,
+                FindMatch(modelImage, observedImage, out modelKeyPoints, out observedKeyPoints, matches,
                    out mask, out homography);
 
                 //Draw the matched keypoints
-                Mat result = new Mat();
+                Mat result = null;
+
+                result = new Mat();
                 Features2DToolbox.DrawMatches(modelImage, modelKeyPoints, observedImage, observedKeyPoints,
-                   matches, result, new MCvScalar(255, 255, 255), new MCvScalar(255, 255, 255), mask);
-
-
+                    matches, result, new MCvScalar(255, 255, 255), new MCvScalar(255, 255, 255), mask);
 
                 #region draw the projected region on the image
 
@@ -123,60 +139,58 @@ namespace control_server
                     Rectangle rect = new Rectangle(Point.Empty, modelImage.Size);
                     PointF[] pts = new PointF[]
                     {
-                          new PointF(rect.Left, rect.Bottom),
-                          new PointF(rect.Right, rect.Bottom),
-                          new PointF(rect.Right, rect.Top),
-                          new PointF(rect.Left, rect.Top)
+                        new PointF(rect.Left, rect.Bottom),
+                        new PointF(rect.Right, rect.Bottom),
+                        new PointF(rect.Right, rect.Top),
+                        new PointF(rect.Left, rect.Top)
                     };
                     pts = CvInvoke.PerspectiveTransform(pts, homography);
 
-#if NETFX_CORE
-               Point[] points = Extensions.ConvertAll<PointF, Point>(pts, Point.Round);
-#else
                     points = Array.ConvertAll<PointF, Point>(pts, Point.Round);
-#endif
                     using (VectorOfPoint vp = new VectorOfPoint(points))
                     {
                         CvInvoke.Polylines(result, vp, true, new MCvScalar(255, 0, 0, 255), 5);
                     }
                 }
                 #endregion
-
-                return result;
-
+                
+                return (result, points);
             }
         }
 
-        public static Mat DetectBillInScreen(Mat frame, ref String[] b, int WIDTH, int HEIGHT)
+        public Mat DetectBillInScreen(Mat frame)
         {
             long matchTime;
-            moneyInScreen = 0;
+            _moneyInScreen = 0;
             Point[][] pointArray = new Point[5][];
-            Mat test = new Mat();
-            for (int i = 0; i < b.Length; i++)
+            Mat test = null;
+
+            int[] detectedMoney = new int[b.Length];
+            using(Mat observedImage = frame.Clone())
             {
-                String bill = "resources/" + b[i] + ".jpg";
-                //using (Mat observedImage = CvInvoke.Imread(frame, ImreadModes.Grayscale))
-                using (Mat modelImage = CvInvoke.Imread(bill, ImreadModes.Grayscale))
+                CvInvoke.Resize(observedImage, observedImage, new Size(WIDTH, HEIGHT));
+                //for(int i = 0; i < b.Length; i++)
+                Parallel.For(0, b.Length, i =>
                 {
-                    Mat observedImage = frame;
-                    CvInvoke.Resize(observedImage, observedImage, new Size(WIDTH, HEIGHT));
-                    CvInvoke.Resize(modelImage, modelImage, new Size(WIDTH, HEIGHT));
-                    Mat result = DrawMatches.Draw(modelImage, observedImage, out matchTime);
-                    //ImageViewer.Show(result, String.Format("Matched in {0} milliseconds", matchTime));
-                    Point[] ps = DrawMatches.GetPs();
+                    detectedMoney[i] = 0;
+                    var modelImage = _modelImages[b[i]];
+                    var result = Draw(modelImage, observedImage);
+
+                    var ps = result.Item2;
                     if (ps != null)
                     {
                         //Console.WriteLine(b[i] + ps[0].ToString() + ps[1].ToString() + ps[2].ToString() + ps[3].ToString());
-                        moneyInScreen += Convert.ToInt32(b[i].Split('_')[0]);
+                        detectedMoney[i] = Convert.ToInt32(b[i].Split('_')[0]);
                     }
-                    if (i == 0) test = result;
-                }
-                pointArray[i] = DrawMatches.GetPs();
+                    result.Item1.Dispose();
+                    // if (i == 0) test = result;
+                });
             }
 
+            _moneyInScreen = detectedMoney.Sum();
+            
             //return DrawRentengle(pointArray, frame);
-            return test;
+            return frame.Clone();
         }
 
         private static Mat DrawRentengle(Point[][] point, Mat frame)
@@ -188,6 +202,14 @@ namespace control_server
                         CvInvoke.Polylines(frame, vp, true, new MCvScalar(255, 0, 255, 255), 5);
                     }
             return frame;
+        }
+
+        public void Dispose()
+        {
+            foreach(var v in _modelImages.Values)
+            {
+                v.Dispose();
+            }
         }
     }
 }
