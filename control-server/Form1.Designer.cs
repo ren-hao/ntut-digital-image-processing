@@ -73,6 +73,7 @@
             this._rightBar.Location = new System.Drawing.Point(41, 134);
             this._rightBar.Margin = new System.Windows.Forms.Padding(4);
             this._rightBar.Maximum = 100;
+            this._rightBar.Minimum = -100;
             this._rightBar.Name = "_rightBar";
             this._rightBar.Size = new System.Drawing.Size(343, 56);
             this._rightBar.TabIndex = 3;
@@ -84,11 +85,12 @@
             this._leftBar.Location = new System.Drawing.Point(41, 28);
             this._leftBar.Margin = new System.Windows.Forms.Padding(4);
             this._leftBar.Maximum = 100;
+            this._leftBar.Minimum = -100;
             this._leftBar.Name = "_leftBar";
             this._leftBar.Size = new System.Drawing.Size(343, 56);
             this._leftBar.TabIndex = 2;
             this._leftBar.TickStyle = System.Windows.Forms.TickStyle.None;
-            this._leftBar.Value = 50;
+            this._leftBar.Scroll += new System.EventHandler(this._leftBar_Scroll);
             // 
             // label2
             // 
@@ -210,10 +212,6 @@
             this._resultPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
             this._resultPictureBox.TabIndex = 6;
             this._resultPictureBox.TabStop = false;
-            // 
-            // _captureTimer
-            // 
-            this._captureTimer.Tick += new System.EventHandler(this._captureTimer_Tick);
             // 
             // Form1
             // 

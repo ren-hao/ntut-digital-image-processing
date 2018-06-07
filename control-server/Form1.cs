@@ -19,7 +19,7 @@ using Emgu.CV.XFeatures2D;
 using Emgu.CV.CvEnum;
 using Emgu.CV.UI;
 using Emgu.Util;
-
+using System.IO;
 
 namespace control_server
 {
@@ -44,9 +44,16 @@ namespace control_server
 
         private bool _shouldHandleMouseDown = false;
         private Point _clickPoint;
-        private CamShiftTracking _trackingObj = null;
-        Rectangle _drawRect = Rectangle.Empty;
+        private CamShiftTracking _trackingObjL = null;
+        private CamShiftTracking _trackingObjR = null;
+        Rectangle _drawRectL = Rectangle.Empty;
+        Rectangle _drawRectR = Rectangle.Empty;
         private bool _isMouseDown = false;
+
+        public Pen rectPenL = new Pen(Brushes.Red, 3);
+        public Pen rectPenR = new Pen(Brushes.Blue, 3);
+
+
 
 
         // property
@@ -167,6 +174,25 @@ namespace control_server
                         // runs on UI thread
                         _sourcePictureBox.Image = _sourceFrame.Bitmap;
 
+                        if (_drawRectL != Rectangle.Empty)
+                        {
+                            var ctx = Graphics.FromImage(_sourceFrame.Bitmap);
+                            ctx.DrawRectangle(rectPenL, _drawRectL);
+                            int pointRectCnt = (_drawRectL.Left + _drawRectL.Width / 2);
+                            int pointBoxCnt = _sourcePictureBox.Width / 2 ;
+                            _leftBar.Value = (int)Math.Round((double)(pointRectCnt - pointBoxCnt) / (_sourcePictureBox.Width / 2) * 100);
+
+                        }
+
+                        if (_drawRectR != Rectangle.Empty)
+                        {
+                            var ctx = Graphics.FromImage(_sourceFrame.Bitmap);
+                            ctx.DrawRectangle(rectPenR, _drawRectR);
+                            int pointRectCnt = (_drawRectR.Left + _drawRectR.Width / 2);
+                            int pointBoxCnt = _sourcePictureBox.Width / 2;
+                            _rightBar.Value = (int)Math.Round((double)(pointRectCnt - pointBoxCnt) / (_sourcePictureBox.Width / 2) * 100);
+                        }
+
                         _sourcePictureBox.Refresh();
                         ///
                         ////////////////////////////////////////////////////////////////////////////////////
@@ -176,11 +202,27 @@ namespace control_server
                         //need modify
                         //_resultImage = sourceImage.Clone();
 
+                        _shouldHandleMouseDown = true;
+
+                        if (_trackingObjL != null)
+                        {
+                            lock (_trackingObjL)
+                                _drawRectL = _trackingObjL.Tracking(sourceImage);
+                        }
+                        if (_trackingObjR != null)
+                        {
+                            lock (_trackingObjR)
+                                _drawRectR = _trackingObjR.Tracking(sourceImage);
+                        }
 
                         if (_resultImage == null)
                         {
                             _resultImage = sourceImage.Clone();
                         }
+
+                        //
+                        _resultPictureBox.Image = _resultImage.Bitmap;
+                        _resultPictureBox.Refresh();
                     }
                 });
                 return;
@@ -214,14 +256,15 @@ namespace control_server
             {
                 _openCameraButton.Enabled = false;
                 _openCameraButton.Text = "停止攝影機";
-                //_captureTimer.Enabled = true;
-                _capture = new VideoCapture(CAM_ID);
+                //_capture = new VideoCapture(CAM_ID);
+                string _videoPath = LoadVideoFile();
+                _capture = new VideoCapture(_videoPath);
 
                 _capture.SetCaptureProperty(Emgu.CV.CvEnum.CapProp.AutoExposure, 0);
                 _capture.SetCaptureProperty(Emgu.CV.CvEnum.CapProp.FrameWidth, WIDTH);//_sourcePictureBox.Width
                 _capture.SetCaptureProperty(Emgu.CV.CvEnum.CapProp.FrameHeight, HEIGHT);// _sourcePictureBox.Height
                 _capture.ImageGrabbed += ProcessFrame;
-                _capture.ImageGrabbed += ProgressCapture;
+                //_capture.ImageGrabbed += ProgressCapture;
 
                 _captureFrame = new Mat();
                 _openCameraButton.Enabled = true;
@@ -271,21 +314,37 @@ namespace control_server
             _isMouseDown = true;
 
         }
-        private void SetTrackObject()
+        private void SetTrackObject(bool right)
         {
             if (!_shouldHandleMouseDown) return;
 
-            if (_trackingObj != null) _trackingObj.Dispose();
-
-            _trackingObj = new CamShiftTracking(_captureFrame.ToImage<Bgr, byte>(), _drawRect);
+            if (_trackingObjL != null && !right) { _trackingObjL.Dispose(); _trackingObjL = null; }
+            if (_trackingObjR != null && right) { _trackingObjR.Dispose(); _trackingObjR = null; }
+            using (var tmpMat = _captureFrame.Clone())
+            using (var tmpImg = tmpMat.ToImage<Bgr, byte>())
+            {
+                if (_drawRectL != Rectangle.Empty && _trackingObjL == null)
+                {
+                    _trackingObjL = new CamShiftTracking(tmpImg, _drawRectL);
+                }
+                if (_drawRectR != Rectangle.Empty && _trackingObjR == null)
+                {
+                    _trackingObjR = new CamShiftTracking(tmpImg, _drawRectR);
+                }
+            }
         }
 
         private void _sourcePictureBox_MouseUp(object sender, MouseEventArgs e)
         {
-            if (!_shouldHandleMouseDown || !_isMouseDown) return;
 
-            SetTrackObject();
+            if (!_shouldHandleMouseDown || !_isMouseDown) return;
+            bool right = false;
+            if (e.Button == MouseButtons.Right) right = true;
+
+            SetTrackObject(right);
             _isMouseDown = false;
+            if (e.Button == MouseButtons.Left) _drawRectL = Rectangle.Empty;
+            if (e.Button == MouseButtons.Right) _drawRectR = Rectangle.Empty;
         }
 
         private void _sourcePictureBox_MouseMove(object sender, MouseEventArgs e)
@@ -293,7 +352,8 @@ namespace control_server
             if (!_shouldHandleMouseDown || !_isMouseDown) return;
 
             Point curPoint = _sourcePictureBox.PointToClient(Cursor.Position);
-            _drawRect = GetRectFromPoint(curPoint, _clickPoint);
+            if (e.Button == MouseButtons.Left) _drawRectL = GetRectFromPoint(curPoint, _clickPoint);
+            else if (e.Button == MouseButtons.Right) _drawRectR = GetRectFromPoint(curPoint, _clickPoint);
             Console.WriteLine("Move");
         }
         private Rectangle GetRectFromPoint(Point p1, Point p2)
@@ -303,6 +363,27 @@ namespace control_server
             int width = Math.Abs(p1.X - p2.X);
             int height = Math.Abs(p1.Y - p2.Y);
             return new Rectangle(left, top, width, height);
+        }
+        private string LoadVideoFile()
+        {
+            string fileName = "";
+            OpenFileDialog dialog = new OpenFileDialog();
+            DirectoryInfo dir = new DirectoryInfo(System.Windows.Forms.Application.StartupPath);
+            dialog.Title = "Open a Video File";
+            dialog.RestoreDirectory = true;
+            dialog.Filter = "Video File|*.mkv;*.mp4;*.avi;*.flv|MP4 (*.mp4)|*.mp4|MKV (*.mkv)|*.mkv|FLV (*.flv)|*.flv";
+
+            if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK && dialog.FileName != null)
+            {
+                fileName = dialog.FileName;
+            }
+
+            return fileName;
+        }
+
+        private void _leftBar_Scroll(object sender, EventArgs e)
+        {
+
         }
     }
 }
