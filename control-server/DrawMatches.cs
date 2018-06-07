@@ -151,6 +151,8 @@ namespace control_server
         {
             long matchTime;
             moneyInScreen = 0;
+            Point[][] pointArray = new Point[5][];
+
             Mat test = new Mat();
             for (int i = 0; i < b.Length; i++)
             {
@@ -169,10 +171,24 @@ namespace control_server
                         //Console.WriteLine(b[i] + ps[0].ToString() + ps[1].ToString() + ps[2].ToString() + ps[3].ToString());
                         moneyInScreen += Convert.ToInt32(b[i].Split('_')[0]);
                     }
-                    if(i==0) test = result;
+                    if (i == 0) test = result;
                 }
+                pointArray[i] = DrawMatches.GetPs();
             }
+
+            //return DrawRentengle(pointArray, frame);
             return test;
+        }
+
+        private static Mat DrawRentengle(Point[][] point, Mat frame)
+        {
+            for (int i = 0; i < 5; i++)
+                if (point[i] != null)
+                    using (VectorOfPoint vp = new VectorOfPoint(point[i]))
+                    {
+                        CvInvoke.Polylines(frame, vp, true, new MCvScalar(255, 0, 255, 255), 5);
+                    }
+            return frame;
         }
     }
 }
