@@ -38,7 +38,7 @@ namespace control_server
         private Image<Bgr, Byte> _resultImage;
         private Mat _captureFrame;
         private Mat _captureObservedFrame = new Mat();
-        private const int CAM_ID = 2;
+        private const int CAM_ID = 0;
         private DrawMatches _momeyMatches = new DrawMatches(WIDTH, HEIGHT);
         // property
 
