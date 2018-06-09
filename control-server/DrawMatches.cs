@@ -94,7 +94,7 @@ namespace control_server
                         nonZeroCount = Features2DToolbox.VoteForSizeAndOrientation(modelKeyPoints, observedKeyPoints,
                             matches, mask, 1.5, 20);
                         //Console.WriteLine("2:" + nonZeroCount.ToString());
-                        if (nonZeroCount >= 15)
+                        if (nonZeroCount >= 17)
                             homography = Features2DToolbox.GetHomographyMatrixFromMatchedFeatures(modelKeyPoints,
                                 observedKeyPoints, matches, mask, 2);
                     }
@@ -160,7 +160,6 @@ namespace control_server
 
         public Mat DetectBillInScreen(Mat frame)
         {
-            long matchTime;
             _moneyInScreen = 0;
             Point[][] pointArray = new Point[5][];
             Mat test = null;
@@ -182,8 +181,9 @@ namespace control_server
                         //Console.WriteLine(b[i] + ps[0].ToString() + ps[1].ToString() + ps[2].ToString() + ps[3].ToString());
                         detectedMoney[i] = Convert.ToInt32(b[i].Split('_')[0]);
                     }
+                    
                     result.Item1.Dispose();
-                    // if (i == 0) test = result;
+                    //if (i == 0) test = result.Item1.Clone();
                 });
             }
 

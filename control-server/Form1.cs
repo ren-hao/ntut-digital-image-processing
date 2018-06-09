@@ -40,6 +40,9 @@ namespace control_server
         private Mat _captureObservedFrame = new Mat();
         private const int CAM_ID = 0;
         private DrawMatches _momeyMatches = new DrawMatches(WIDTH, HEIGHT);
+        private Queue<int> _moneyQueue = new Queue<int>();
+        private const int MAX_QUEUE_SIZE = 10;
+        private int _realMoney = 0;
         // property
 
         public Form1()
@@ -229,6 +232,26 @@ namespace control_server
             _resultPictureBox.Refresh();
         }
 
+        private int GetMostItem()
+        {
+            int largestValue = 0;
+            int largestKey = 0;
+            Dictionary<int, int> count = new Dictionary<int, int>();
+            foreach (int m in _moneyQueue)
+            {
+                if (count.ContainsKey(m))
+                    count[m] += 1;
+                else
+                    count.Add(m, 1);
+                if (count[m] > largestValue)
+                {
+                    largestValue = count[m];
+                    largestKey = m;
+                }
+            }
+            return largestKey;
+        }
+
         private void ProgressCapture(object sender, EventArgs e)
         {
             if (_isDetectorProcessing)
@@ -250,7 +273,15 @@ namespace control_server
                         _isDetectorProcessing = false;
                     }
 
-                    Console.WriteLine("Currently Point: " + _momeyMatches.GetMoneyInScreen().ToString());
+                    //Console.WriteLine("Currently Point: " + _momeyMatches.GetMoneyInScreen().ToString());
+                    if (_moneyQueue.Count == MAX_QUEUE_SIZE)
+                        _moneyQueue.Dequeue();
+                    _moneyQueue.Enqueue(_momeyMatches.GetMoneyInScreen());
+
+                    int change = GetMostItem() - _realMoney;
+                    //Console.WriteLine(GetMostItem());     
+                    if (change != 0) SendDonateMoney(change);
+                    _realMoney += change;
                 }
             });
 
