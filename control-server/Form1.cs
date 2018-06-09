@@ -222,7 +222,7 @@ namespace control_server
                         if (_trackStatus != TrackStatus.None)
                             SetTrackObject(blurImage);
 
-                        
+
                         _sourcePictureBox.Refresh();
                         ///
                         ////////////////////////////////////////////////////////////////////////////////////
@@ -230,7 +230,7 @@ namespace control_server
                         ReleaseImage(ref _resultImage);
                         // TODO: Process image here
 
-                        if(_trackingObjL!=null || _trackingObjR != null)
+                        if (_trackingObjL != null || _trackingObjR != null)
                         {
                             _resultImage = sourceImage.Clone();
                         }
@@ -283,7 +283,8 @@ namespace control_server
             {
                 _openCameraButton.Enabled = false;
                 _openCameraButton.Text = "停止攝影機";
-                if (USE_CAMERA) {
+                if (USE_CAMERA)
+                {
                     _capture = new VideoCapture(CAM_ID);
                     FPS = 24;
                 }
@@ -359,10 +360,10 @@ namespace control_server
 
         private void SetTrackObject(Image<Bgr, byte> image)
         {
-            if (_trackStatus==TrackStatus.None) return;
+            if (_trackStatus == TrackStatus.None) return;
             CamShiftTracking trackObj = null;
             Rectangle rect = Rectangle.Empty;
-            
+
             if (_trackStatus == TrackStatus.Left)
                 rect = _drawRectL;
             else
