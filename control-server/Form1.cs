@@ -66,7 +66,7 @@ namespace control_server
         private Point[][] moneyPoints = null;
 
         private TrackStatus _trackStatus = TrackStatus.None;
-        
+
         // property
 
         public Form1()
@@ -223,21 +223,19 @@ namespace control_server
 
                         if (_isMouseDown)
                         {
-                            ShowDraggingRect(_drawRectL, rectPenL, _sourceFrame.Bitmap);
-                            ShowDraggingRect(_drawRectR, rectPenR, _sourceFrame.Bitmap);
+                            ShowDraggingRect(_drawRectL, rectPenL, sourceImage.Bitmap);
+                            ShowDraggingRect(_drawRectR, rectPenR, sourceImage.Bitmap);
                         }
-                    // runs on UI thread
-                    _sourcePictureBox.Image = _sourceFrame.Bitmap;
+                        // runs on UI thread
+                        _sourcePictureBox.Image = sourceImage.Bitmap;
+                        _sourcePictureBox.Refresh();
 
                         if (_trackStatus != TrackStatus.None)
                             SetTrackObject(blurImage);
-
-
-                        _sourcePictureBox.Refresh();
-                    ///
-                    ////////////////////////////////////////////////////////////////////////////////////
-                    ///
-                    lock (_resultImgObj)
+                        ///
+                        ////////////////////////////////////////////////////////////////////////////////////
+                        ///
+                        lock (_resultImgObj)
                         {
                             ReleaseImage(ref _resultImgObj[0]);
 
