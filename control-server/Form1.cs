@@ -60,9 +60,7 @@ namespace control_server
         public Pen rectPenL = new Pen(Brushes.Red, 3);
         public Pen rectPenR = new Pen(Brushes.Blue, 3);
         public Pen moneyPen = new Pen(Brushes.Magenta, 5);
-        private const bool USE_CAMERA = true;
-        private readonly Size SIZE = new Size(0, 0);
-        private const int SIGMAX = 3;
+        private readonly Size SIZE = new Size(8, 8);
         private Point[][] moneyPoints = null;
 
         private TrackStatus _trackStatus = TrackStatus.None;
@@ -219,7 +217,7 @@ namespace control_server
                     using (Image<Bgr, byte> sourceImage = _sourceFrame.ToImage<Bgr, Byte>())
                     using (Image<Bgr, byte> blurImage = sourceImage.Clone())
                     {
-                        CvInvoke.GaussianBlur(blurImage, blurImage, SIZE, SIGMAX);
+                        CvInvoke.Blur(blurImage, blurImage, SIZE, Point.Empty);
 
                         if (_isMouseDown)
                         {
