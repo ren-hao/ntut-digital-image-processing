@@ -52,9 +52,10 @@ namespace control_server
 
         public Pen rectPenL = new Pen(Brushes.Red, 3);
         public Pen rectPenR = new Pen(Brushes.Blue, 3);
+        private const bool USE_CAMERA = true;
 
 
-
+        
 
         // property
 
@@ -221,6 +222,7 @@ namespace control_server
                         }
 
                         //
+                        CvInvoke.GaussianBlur(_resultImage, _resultImage, new Size(0, 0), 3);
                         _resultPictureBox.Image = _resultImage.Bitmap;
                         _resultPictureBox.Refresh();
                     }
@@ -256,10 +258,13 @@ namespace control_server
             {
                 _openCameraButton.Enabled = false;
                 _openCameraButton.Text = "停止攝影機";
-                //_capture = new VideoCapture(CAM_ID);
-                string _videoPath = LoadVideoFile();
-                _capture = new VideoCapture(_videoPath);
-
+                if(USE_CAMERA) _capture = new VideoCapture(CAM_ID);
+                else
+                {
+                    string _videoPath = LoadVideoFile();
+                    _capture = new VideoCapture(_videoPath);
+                }
+                
                 _capture.SetCaptureProperty(Emgu.CV.CvEnum.CapProp.AutoExposure, 0);
                 _capture.SetCaptureProperty(Emgu.CV.CvEnum.CapProp.FrameWidth, WIDTH);//_sourcePictureBox.Width
                 _capture.SetCaptureProperty(Emgu.CV.CvEnum.CapProp.FrameHeight, HEIGHT);// _sourcePictureBox.Height
