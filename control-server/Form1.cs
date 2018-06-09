@@ -32,12 +32,12 @@ namespace control_server
         private const int PORT = 2229;
         public const int WIDTH = 480;
         public const int HEIGHT = 270;
-        private const long DETECT_MONEY_INTERVAL = 250;
+        private const long DETECT_MONEY_INTERVAL = 500;
         // property
         private bool _isCapturing = false;
         private bool _isDetectorProcessing = false;
         private VideoCapture _capture = null;
-        private Image<Bgr, Byte> _resultImage;
+        private Image<Bgr, Byte>[] _resultImgObj = new Image<Bgr, byte>[1];
         private Mat _captureFrame;
         private Mat _captureObservedFrame = new Mat();
         private const int CAM_ID = 2;
@@ -57,9 +57,11 @@ namespace control_server
 
         public Pen rectPenL = new Pen(Brushes.Red, 3);
         public Pen rectPenR = new Pen(Brushes.Blue, 3);
+        public Pen moneyPen = new Pen(Brushes.White, 5);
         private const bool USE_CAMERA = true;
         private readonly Size SIZE = new Size(0, 0);
         private const int SIGMAX = 3;
+        private Point[][] moneyPoints = null;
 
         private TrackStatus _trackStatus = TrackStatus.None;
         
@@ -202,10 +204,10 @@ namespace control_server
                 _capture.Retrieve(_captureFrame);
                 CvInvoke.Resize(_captureFrame, _captureFrame, new Size(WIDTH, HEIGHT), 0, 0, Emgu.CV.CvEnum.Inter.Cubic);
 
-                if(DateTime.Now.Ticks - _lastDetectTime >= DETECT_MONEY_INTERVAL * 1000 * 10)
+                if (DateTime.Now.Ticks - _lastDetectTime >= DETECT_MONEY_INTERVAL * 1000 * 10)
                 {
                     _lastDetectTime = DateTime.Now.Ticks;
-                    ProgressCapture(sender, e);
+                    new Thread(() => ProgressCapture(sender, e)).Start();
                 }
 
                 this.Invoke((MethodInvoker)delegate
@@ -234,30 +236,50 @@ namespace control_server
                         ///
                         ////////////////////////////////////////////////////////////////////////////////////
                         ///
-                        ReleaseImage(ref _resultImage);
-                        // TODO: Process image here
-
-                        if (_trackingObjL != null || _trackingObjR != null)
+                        lock (_resultImgObj)
                         {
-                            _resultImage = sourceImage.Clone();
-                        }
+                            ReleaseImage(ref _resultImgObj[0]);
 
-                        if (_trackingObjL != null)
-                        {
-                            UpdateTrackView(_leftBar, _trackingObjL.Tracking(blurImage), rectPenL, _resultImage.Bitmap);
-                        }
-                        if (_trackingObjR != null)
-                        {
-                            UpdateTrackView(_rightBar, _trackingObjR.Tracking(blurImage), rectPenR, _resultImage.Bitmap);
-                        }
+                            if (_trackingObjL != null || _trackingObjR != null)
+                            {
+                                _resultImgObj[0] = sourceImage.Clone();
+                            }
 
-                        if (_resultImage == null)
-                        {
-                            _resultImage = sourceImage.Clone();
-                        }
+                            if (_trackingObjL != null)
+                            {
+                                UpdateTrackView(_leftBar, _trackingObjL.Tracking(blurImage), rectPenL, _resultImgObj[0].Bitmap);
+                            }
+                            if (_trackingObjR != null)
+                            {
+                                UpdateTrackView(_rightBar, _trackingObjR.Tracking(blurImage), rectPenR, _resultImgObj[0].Bitmap);
+                            }
 
-                        _resultPictureBox.Image = _resultImage.Bitmap;
-                        _resultPictureBox.Refresh();
+                            if (_resultImgObj[0] == null)
+                            {
+                                _resultImgObj[0] = sourceImage.Clone();
+                            }
+
+                            if (!_isDetectorProcessing && moneyPoints != null)
+                            {
+                                var ctx = Graphics.FromImage(_resultImgObj[0].Bitmap);
+                                foreach (var ps in moneyPoints)
+                                {
+                                    if (ps != null)
+                                    {
+                                        var xQuery = from p in ps select p.X;
+                                        var yQuery = from p in ps select p.X;
+                                        var minX = xQuery.Min();
+                                        var minY = yQuery.Min();
+                                        var maxX = xQuery.Max();
+                                        var maxY = yQuery.Max();
+                                        ctx.DrawRectangle(moneyPen, minX, minY, maxX - minX, maxY - minY);
+                                    }
+                                }
+                            }
+
+                            _resultPictureBox.Image = _resultImgObj[0].Bitmap;
+                            _resultPictureBox.Refresh();
+                        }
                     }
                 });
                 return;
@@ -323,8 +345,8 @@ namespace control_server
         private void SetResultImage(Image<Bgr, byte> target)
         {
             _resultPictureBox.Image = null;
-            ReleaseImage(ref _resultImage);
-            _resultPictureBox.Image = _resultImage.Bitmap;
+            ReleaseImage(ref _resultImgObj[0]);
+            _resultPictureBox.Image = _resultImgObj[0].Bitmap;
             _resultPictureBox.Refresh();
         }
 
@@ -340,7 +362,7 @@ namespace control_server
                 using (Mat _grayFrame = new Mat())
                 {
                     CvInvoke.CvtColor(_sourceFrame, _grayFrame, ColorConversion.Bgr2Gray);
-                    _momeyMatches.DetectBillInScreen(_grayFrame).Dispose();
+                    moneyPoints = _momeyMatches.DetectBillInScreen(_grayFrame);
                     _isDetectorProcessing = false;
                 }
 

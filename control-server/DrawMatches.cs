@@ -158,11 +158,11 @@ namespace control_server
             }
         }
 
-        public Mat DetectBillInScreen(Mat frame)
+        public Point[][] DetectBillInScreen(Mat frame)
         {
             long matchTime;
             _moneyInScreen = 0;
-            Point[][] pointArray = new Point[5][];
+            Point[][] pointArray = new Point[b.Length][];
             Mat test = null;
 
             int[] detectedMoney = new int[b.Length];
@@ -177,20 +177,18 @@ namespace control_server
                     var result = Draw(modelImage, observedImage);
 
                     var ps = result.Item2;
+                    pointArray[i] = ps;
                     if (ps != null)
                     {
-                        //Console.WriteLine(b[i] + ps[0].ToString() + ps[1].ToString() + ps[2].ToString() + ps[3].ToString());
                         detectedMoney[i] = Convert.ToInt32(b[i].Split('_')[0]);
                     }
                     result.Item1.Dispose();
-                    // if (i == 0) test = result;
                 });
             }
 
             _moneyInScreen = detectedMoney.Sum();
             
-            //return DrawRentengle(pointArray, frame);
-            return frame.Clone();
+            return pointArray;
         }
 
         private static Mat DrawRentengle(Point[][] point, Mat frame)
