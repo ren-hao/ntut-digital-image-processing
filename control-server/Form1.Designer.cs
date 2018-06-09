@@ -59,18 +59,18 @@
             this.groupBox1.Controls.Add(this.label1);
             this.groupBox1.Location = new System.Drawing.Point(12, 40);
             this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Size = new System.Drawing.Size(294, 152);
+            this.groupBox1.Size = new System.Drawing.Size(360, 119);
             this.groupBox1.TabIndex = 0;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "Control Box";
             // 
             // _rightBar
             // 
-            this._rightBar.Location = new System.Drawing.Point(31, 100);
+            this._rightBar.Location = new System.Drawing.Point(31, 72);
             this._rightBar.Maximum = 100;
             this._rightBar.Minimum = -100;
             this._rightBar.Name = "_rightBar";
-            this._rightBar.Size = new System.Drawing.Size(257, 45);
+            this._rightBar.Size = new System.Drawing.Size(323, 45);
             this._rightBar.TabIndex = 3;
             this._rightBar.TickStyle = System.Windows.Forms.TickStyle.None;
             this._rightBar.Value = 50;
@@ -81,7 +81,7 @@
             this._leftBar.Maximum = 100;
             this._leftBar.Minimum = -100;
             this._leftBar.Name = "_leftBar";
-            this._leftBar.Size = new System.Drawing.Size(257, 45);
+            this._leftBar.Size = new System.Drawing.Size(323, 45);
             this._leftBar.TabIndex = 2;
             this._leftBar.TickStyle = System.Windows.Forms.TickStyle.None;
             this._leftBar.Scroll += new System.EventHandler(this._leftBar_Scroll);
@@ -89,7 +89,7 @@
             // label2
             // 
             this.label2.AutoSize = true;
-            this.label2.Location = new System.Drawing.Point(6, 100);
+            this.label2.Location = new System.Drawing.Point(6, 72);
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(16, 12);
             this.label2.TabIndex = 1;
@@ -124,9 +124,9 @@
             this.groupBox2.Controls.Add(this.button3);
             this.groupBox2.Controls.Add(this.button2);
             this.groupBox2.Enabled = false;
-            this.groupBox2.Location = new System.Drawing.Point(12, 200);
+            this.groupBox2.Location = new System.Drawing.Point(12, 163);
             this.groupBox2.Name = "groupBox2";
-            this.groupBox2.Size = new System.Drawing.Size(294, 100);
+            this.groupBox2.Size = new System.Drawing.Size(360, 100);
             this.groupBox2.TabIndex = 2;
             this.groupBox2.TabStop = false;
             this.groupBox2.Text = "Donate";
@@ -164,9 +164,9 @@
             // _sourcePictureBox
             // 
             this._sourcePictureBox.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this._sourcePictureBox.Location = new System.Drawing.Point(326, 24);
+            this._sourcePictureBox.Location = new System.Drawing.Point(378, 12);
             this._sourcePictureBox.Name = "_sourcePictureBox";
-            this._sourcePictureBox.Size = new System.Drawing.Size(480, 270);
+            this._sourcePictureBox.Size = new System.Drawing.Size(853, 480);
             this._sourcePictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
             this._sourcePictureBox.TabIndex = 4;
             this._sourcePictureBox.TabStop = false;
@@ -176,7 +176,7 @@
             // 
             // _openCameraButton
             // 
-            this._openCameraButton.Location = new System.Drawing.Point(13, 323);
+            this._openCameraButton.Location = new System.Drawing.Point(99, 12);
             this._openCameraButton.Name = "_openCameraButton";
             this._openCameraButton.Size = new System.Drawing.Size(75, 23);
             this._openCameraButton.TabIndex = 5;
@@ -187,9 +187,9 @@
             // _resultPictureBox
             // 
             this._resultPictureBox.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this._resultPictureBox.Location = new System.Drawing.Point(326, 307);
+            this._resultPictureBox.Location = new System.Drawing.Point(12, 289);
             this._resultPictureBox.Name = "_resultPictureBox";
-            this._resultPictureBox.Size = new System.Drawing.Size(480, 270);
+            this._resultPictureBox.Size = new System.Drawing.Size(360, 203);
             this._resultPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
             this._resultPictureBox.TabIndex = 6;
             this._resultPictureBox.TabStop = false;
@@ -198,7 +198,7 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(836, 605);
+            this.ClientSize = new System.Drawing.Size(1185, 511);
             this.Controls.Add(this._resultPictureBox);
             this.Controls.Add(this._openCameraButton);
             this.Controls.Add(this._sourcePictureBox);

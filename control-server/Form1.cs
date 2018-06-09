@@ -20,6 +20,7 @@ using Emgu.CV.CvEnum;
 using Emgu.CV.UI;
 using Emgu.Util;
 using System.IO;
+using System.ServiceModel.Dispatcher;
 
 namespace control_server
 {
@@ -30,23 +31,24 @@ namespace control_server
         private Server _server = null;
         // delegate object obj_delegate();
         private const int PORT = 2229;
-        public const int WIDTH = 480;
-        public const int HEIGHT = 270;
+        public const int WIDTH = 853;
+        public const int HEIGHT = 480;
         private const long DETECT_MONEY_INTERVAL = 500;
         // property
-        private bool _isCapturing = false;
+        private volatile bool _isCapturing = false;
         private bool _isDetectorProcessing = false;
         private VideoCapture _capture = null;
         private Image<Bgr, Byte>[] _resultImgObj = new Image<Bgr, byte>[1];
-        private Mat _captureFrame;
+        private Mat _captureFrame = new Mat();
         private Mat _captureObservedFrame = new Mat();
-        private const int CAM_ID = 2;
+        private const int CAM_ID = 0;
         private DrawMatches _momeyMatches = new DrawMatches(WIDTH, HEIGHT);
         private String[] b = new String[] { "100_0", "200_0", "500_0", "1000_0", "2000_0" };
         private double FPS = 24;
         private long FPS_TICKS;
         private long _lastFetchTime = 0;
         private long _lastDetectTime = 0;
+        private CaptureExceptionHandler _capErrHandler = new CaptureExceptionHandler();
 
         private Point _clickPoint;
         private CamShiftTracking _trackingObjL = null;
@@ -57,7 +59,7 @@ namespace control_server
 
         public Pen rectPenL = new Pen(Brushes.Red, 3);
         public Pen rectPenR = new Pen(Brushes.Blue, 3);
-        public Pen moneyPen = new Pen(Brushes.White, 5);
+        public Pen moneyPen = new Pen(Brushes.Magenta, 5);
         private const bool USE_CAMERA = true;
         private readonly Size SIZE = new Size(0, 0);
         private const int SIGMAX = 3;
@@ -72,7 +74,7 @@ namespace control_server
             InitializeComponent();
             _timer.Interval = 1000 / SEND_PER_SEC;
             this.Closing += new System.ComponentModel.CancelEventHandler(Form1_Closing);
-            _sourcePictureBox.Size = _resultPictureBox.Size = new Size(WIDTH, HEIGHT);
+            _sourcePictureBox.Size = new Size(WIDTH, HEIGHT);
 
             // 用圖片當 observation
             //DrawMatches.DetectBillInScreen("resources/test1000.jpg", b, WIDTH, HEIGHT);
@@ -149,7 +151,7 @@ namespace control_server
 
         private bool IsCapturing()
         {
-            return !(!_isCapturing || _capture == null || _capture.Ptr == IntPtr.Zero || !_capture.IsOpened);
+            return _isCapturing && _capture != null && _capture.Ptr != IntPtr.Zero && _capture.IsOpened;
         }
 
         public static void ReleaseImage<T>(ref T data) where T : UnmanagedObject
@@ -197,7 +199,6 @@ namespace control_server
 
             //Console.WriteLine("FPS: {0}", 1 / ((DateTime.Now.Ticks - _lastFetchTime) / (1000 * 1000 * 10f)));
             Interlocked.Exchange(ref _lastFetchTime, DateTime.Now.Ticks);
-
             if (IsCapturing())
             {
                 //取得網路攝影機的影像
@@ -225,18 +226,18 @@ namespace control_server
                             ShowDraggingRect(_drawRectL, rectPenL, _sourceFrame.Bitmap);
                             ShowDraggingRect(_drawRectR, rectPenR, _sourceFrame.Bitmap);
                         }
-                        // runs on UI thread
-                        _sourcePictureBox.Image = _sourceFrame.Bitmap;
+                    // runs on UI thread
+                    _sourcePictureBox.Image = _sourceFrame.Bitmap;
 
                         if (_trackStatus != TrackStatus.None)
                             SetTrackObject(blurImage);
 
 
                         _sourcePictureBox.Refresh();
-                        ///
-                        ////////////////////////////////////////////////////////////////////////////////////
-                        ///
-                        lock (_resultImgObj)
+                    ///
+                    ////////////////////////////////////////////////////////////////////////////////////
+                    ///
+                    lock (_resultImgObj)
                         {
                             ReleaseImage(ref _resultImgObj[0]);
 
@@ -267,7 +268,7 @@ namespace control_server
                                     if (ps != null)
                                     {
                                         var xQuery = from p in ps select p.X;
-                                        var yQuery = from p in ps select p.X;
+                                        var yQuery = from p in ps select p.Y;
                                         var minX = xQuery.Min();
                                         var minY = yQuery.Min();
                                         var maxX = xQuery.Max();
@@ -300,8 +301,11 @@ namespace control_server
                 _openCameraButton.Text = "開啟攝影機";
                 Console.WriteLine("close");
                 _isCapturing = false;
-                _capture.Stop();//摄像头关闭
                 _capture.ImageGrabbed -= ProcessFrame;
+                lock (_capture)
+                {
+                    _capture.Stop();//摄像头关闭
+                }
                 _capture.Dispose();
                 _capture = null;
                 _sourcePictureBox.Image = _resultPictureBox.Image = null;
@@ -331,12 +335,11 @@ namespace control_server
                 _capture.ImageGrabbed += ProcessFrame;
                 //_capture.ImageGrabbed += ProgressCapture;
 
-                _captureFrame = new Mat();
                 _openCameraButton.Enabled = true;
 
                 if (_capture != null)
                 {
-                    _capture.Start();
+                    _capture.Start(_capErrHandler);
                     _isCapturing = true;
                 }
             }
@@ -428,6 +431,7 @@ namespace control_server
             else if (e.Button == MouseButtons.Right) _drawRectR = GetRectFromPoint(curPoint, _clickPoint);
             Console.WriteLine("Move");
         }
+
         private Rectangle GetRectFromPoint(Point p1, Point p2)
         {
             int left = Math.Min(p1.X, p2.X);
@@ -457,5 +461,6 @@ namespace control_server
         {
 
         }
+
     }
 }

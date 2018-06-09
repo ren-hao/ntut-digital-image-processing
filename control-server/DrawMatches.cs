@@ -17,11 +17,13 @@ namespace control_server
 {
     public class DrawMatches : IDisposable
     {
+        private SIFT surf = new SIFT();
         private readonly int WIDTH;
         private readonly int HEIGHT;
 
         private int _moneyInScreen = 0;
         private readonly Dictionary<string, Mat> _modelImages;
+        private readonly Dictionary<string, FeatureModel> _modelFeatures;
         private static String[] b = new String[] { "100_0", "200_0", "500_0", "1000_0", "2000_0" };
 
         public DrawMatches(int width, int height)
@@ -30,12 +32,14 @@ namespace control_server
             HEIGHT = height;
 
             _modelImages = new Dictionary<string, Mat>();
-            foreach(var path in b)
+            _modelFeatures = new Dictionary<string, FeatureModel>();
+            foreach (var path in b)
             {
                 var bill = "resources/" + path + ".jpg";
                 Mat modelImage = CvInvoke.Imread(bill, ImreadModes.Grayscale);
-                CvInvoke.Resize(modelImage, modelImage, new Size(WIDTH, HEIGHT));
+                // CvInvoke.Resize(modelImage, modelImage, new Size(WIDTH, HEIGHT));
                 _modelImages.Add(path, modelImage);
+                _modelFeatures.Add(path, ExtractFeatures(modelImage));
             }
         }
 
@@ -44,46 +48,44 @@ namespace control_server
             return _moneyInScreen;
         }
 
-        private static void FindMatch(Mat modelImage, Mat observedImage, out VectorOfKeyPoint modelKeyPoints, out VectorOfKeyPoint observedKeyPoints, VectorOfVectorOfDMatch matches, out Mat mask, out Mat homography)
+        private FeatureModel ExtractFeatures(Mat modelImage)
+        {
+            var modelKeyPoints = new VectorOfKeyPoint();
+            Mat modelDescriptors = new Mat();
+            using (UMat uModelImage = modelImage.GetUMat(AccessType.Read))
+            {
+                //featureDetector.DetectAndCompute(uModelImage, null, modelKeyPoints, modelDescriptors, false);
+                surf.DetectAndCompute(uModelImage, null, modelKeyPoints, modelDescriptors, false);
+            }
+
+            return new FeatureModel(modelKeyPoints, modelDescriptors);
+        }
+
+        private void FindMatch(
+            string modelImagePath, Mat observedImage,
+            VectorOfVectorOfDMatch matches, 
+            out Mat homography
+        )
         {
             int k = 2;
-            double uniquenessThreshold = 0.80;
+            double uniquenessThreshold = 0.60;
 
             //Stopwatch watch;
             homography = null;
+            var modelFeature = _modelFeatures[modelImagePath];
+            using (var observedFeature = ExtractFeatures(observedImage))
 
-            modelKeyPoints = new VectorOfKeyPoint();
-            observedKeyPoints = new VectorOfKeyPoint();
-
-            using (UMat uModelImage = modelImage.GetUMat(AccessType.Read))
-            using (UMat uObservedImage = observedImage.GetUMat(AccessType.Read))
+            // You can use KDTree for faster matching with slight loss in accuracy
+            using (Emgu.CV.Flann.KdTreeIndexParams ip = new Emgu.CV.Flann.KdTreeIndexParams())
+            using (Emgu.CV.Flann.SearchParams sp = new SearchParams())
+            // 匹配器
+            using (DescriptorMatcher matcher = new FlannBasedMatcher(ip, sp))
             {
-                //KAZE featureDetector = new KAZE();
-                SIFT surf = new SIFT();
+                matcher.Add(modelFeature.Descriptors);
 
-                //extract features from the object image
-                Mat modelDescriptors = new Mat();
-                //featureDetector.DetectAndCompute(uModelImage, null, modelKeyPoints, modelDescriptors, false);
-                surf.DetectAndCompute(uModelImage, null, modelKeyPoints, modelDescriptors, false);
-
-                //watch = Stopwatch.StartNew();
-
-                // extract features from the observed image
-                Mat observedDescriptors = new Mat();
-                //featureDetector.DetectAndCompute(uObservedImage, null, observedKeyPoints, observedDescriptors, false);
-                surf.DetectAndCompute(uObservedImage, null, observedKeyPoints, observedDescriptors, false);
-
-                // Bruteforce, slower but more accurate
-                // You can use KDTree for faster matching with slight loss in accuracy
-                using (Emgu.CV.Flann.KdTreeIndexParams ip = new Emgu.CV.Flann.KdTreeIndexParams())
-                using (Emgu.CV.Flann.SearchParams sp = new SearchParams())
-                // 匹配器
-                using (DescriptorMatcher matcher = new FlannBasedMatcher(ip, sp))
+                matcher.KnnMatch(observedFeature.Descriptors, matches, k, null);
+                using (var mask = new Mat(matches.Size, 1, DepthType.Cv8U, 1))
                 {
-                    matcher.Add(modelDescriptors);
-
-                    matcher.KnnMatch(observedDescriptors, matches, k, null);
-                    mask = new Mat(matches.Size, 1, DepthType.Cv8U, 1);
                     mask.SetTo(new MCvScalar(255));
                     Features2DToolbox.VoteForUniqueness(matches, uniquenessThreshold, mask);
 
@@ -91,18 +93,15 @@ namespace control_server
                     if (nonZeroCount >= 4)
                     {
                         //Console.WriteLine("1:"+nonZeroCount.ToString());
-                        nonZeroCount = Features2DToolbox.VoteForSizeAndOrientation(modelKeyPoints, observedKeyPoints,
+                        nonZeroCount = Features2DToolbox.VoteForSizeAndOrientation(modelFeature.KeyPoints, observedFeature.KeyPoints,
                             matches, mask, 1.5, 20);
                         //Console.WriteLine("2:" + nonZeroCount.ToString());
                         if (nonZeroCount >= 15)
-                            homography = Features2DToolbox.GetHomographyMatrixFromMatchedFeatures(modelKeyPoints,
-                                observedKeyPoints, matches, mask, 2);
+                            homography = Features2DToolbox.GetHomographyMatrixFromMatchedFeatures(modelFeature.KeyPoints,
+                                observedFeature.KeyPoints, matches, mask, 2);
                     }
                 }
-                //watch.Stop();
-
             }
-            //matchTime = watch.ElapsedMilliseconds;
         }
 
         /// <summary>
@@ -112,31 +111,27 @@ namespace control_server
         /// <param name="observedImage">The observed image</param>
         /// <param name="matchTime">The output total time for computing the homography matrix.</param>
         /// <returns>The model image and observed image, the matched features and homography projection.</returns>
-        public static Tuple<Mat, Point[]> Draw(Mat modelImage, Mat observedImage)
+        public Point[] Draw(string modelImagePath, Mat observedImage)
         {
             Point[] points = null;
             Mat homography;
-            VectorOfKeyPoint modelKeyPoints;
-            VectorOfKeyPoint observedKeyPoints;
             using (VectorOfVectorOfDMatch matches = new VectorOfVectorOfDMatch())
             {
-                Mat mask;
-                FindMatch(modelImage, observedImage, out modelKeyPoints, out observedKeyPoints, matches,
-                   out mask, out homography);
+                FindMatch(modelImagePath, observedImage, matches, out homography);
 
                 //Draw the matched keypoints
-                Mat result = null;
+                //Mat result = null;
 
-                result = new Mat();
-                Features2DToolbox.DrawMatches(modelImage, modelKeyPoints, observedImage, observedKeyPoints,
-                    matches, result, new MCvScalar(255, 255, 255), new MCvScalar(255, 255, 255), mask);
+                //result = new Mat();
+                //Features2DToolbox.DrawMatches(modelImage, modelKeyPoints, observedImage, observedKeyPoints,
+                //    matches, result, new MCvScalar(255, 255, 255), new MCvScalar(255, 255, 255), mask);
 
                 #region draw the projected region on the image
 
                 if (homography != null)
                 {
                     //draw a rectangle along the projected model
-                    Rectangle rect = new Rectangle(Point.Empty, modelImage.Size);
+                    Rectangle rect = new Rectangle(Point.Empty, _modelImages[modelImagePath].Size);
                     PointF[] pts = new PointF[]
                     {
                         new PointF(rect.Left, rect.Bottom),
@@ -147,14 +142,15 @@ namespace control_server
                     pts = CvInvoke.PerspectiveTransform(pts, homography);
 
                     points = Array.ConvertAll<PointF, Point>(pts, Point.Round);
-                    using (VectorOfPoint vp = new VectorOfPoint(points))
-                    {
-                        CvInvoke.Polylines(result, vp, true, new MCvScalar(255, 0, 0, 255), 5);
-                    }
+                    //using (VectorOfPoint vp = new VectorOfPoint(points))
+                    //{
+                    //    CvInvoke.Polylines(result, vp, true, new MCvScalar(255, 0, 0, 255), 5);
+                    //}
+
+                    homography.Dispose();
                 }
                 #endregion
-                
-                return new Tuple<Mat, Point[]>(result, points);
+                return points;
             }
         }
 
@@ -173,16 +169,14 @@ namespace control_server
                 Parallel.For(0, b.Length, i =>
                 {
                     detectedMoney[i] = 0;
-                    var modelImage = _modelImages[b[i]];
-                    var result = Draw(modelImage, observedImage);
+                    var modelImage = b[i];
+                    var ps = Draw(modelImage, observedImage);
 
-                    var ps = result.Item2;
                     pointArray[i] = ps;
                     if (ps != null)
                     {
                         detectedMoney[i] = Convert.ToInt32(b[i].Split('_')[0]);
                     }
-                    result.Item1.Dispose();
                 });
             }
 
@@ -204,9 +198,29 @@ namespace control_server
 
         public void Dispose()
         {
-            foreach(var v in _modelImages.Values)
-            {
+            foreach (var v in _modelFeatures.Values)
                 v.Dispose();
+            foreach (var v in _modelImages.Values)
+                v.Dispose();
+            _modelFeatures.Clear();
+            _modelImages.Clear();
+        }
+
+        private class FeatureModel : IDisposable
+        {
+            public readonly VectorOfKeyPoint KeyPoints;
+            public readonly Mat Descriptors;
+
+            public FeatureModel(VectorOfKeyPoint modelKeyPoints, Mat modelDescriptors)
+            {
+                this.KeyPoints = modelKeyPoints;
+                this.Descriptors = modelDescriptors;
+            }
+
+            public void Dispose()
+            {
+                KeyPoints.Dispose();
+                Descriptors.Dispose();
             }
         }
     }
