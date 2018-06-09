@@ -16,31 +16,22 @@ namespace control_server
         public DenseHistogram hist;
         private Rectangle trackingWindow;
 
-        private readonly Size SIZE=new Size(0, 0);
-        private const int SIGMAX = 3;
-
-        const int iBinSize = 60;
+        const int iBinSize = 180;
 
         MCvTermCriteria TermCriteria = new MCvTermCriteria() { Epsilon = 100 * Double.Epsilon, MaxIter = 50 };
 
         public CamShiftTracking(Image<Bgr, Byte> image, Rectangle ROI)
         {
-            using (Image<Bgr, Byte> blur = image.Clone())
-            {
-                CvInvoke.GaussianBlur(blur, blur, SIZE, SIGMAX);
-                hue = new Image<Gray, byte>(blur.Width, blur.Height);
-                hue._EqualizeHist();
-                mask = new Image<Gray, byte>(blur.Width, blur.Height);
-                hist = new DenseHistogram(iBinSize, new RangeF(0, 360));
-                backproject = new Image<Gray, byte>(blur.Width, blur.Height);
+            hue = new Image<Gray, byte>(image.Width, image.Height);
+            hue._EqualizeHist();
+            mask = new Image<Gray, byte>(image.Width, image.Height);
+            hist = new DenseHistogram(iBinSize, new RangeF(0, 360));
+            backproject = new Image<Gray, byte>(image.Width, image.Height);
 
-                // Assign Object's ROI from source image.
-                trackingWindow = ROI;
+            // Assign Object's ROI from source image.
+            trackingWindow = ROI;
 
-                CalObjectHist(blur);
-            }
-
-           
+            CalObjectHist(image);
         }
 
         public void Dispose()
@@ -54,11 +45,7 @@ namespace control_server
 
         public Rectangle Tracking(Image<Bgr, Byte> image)
         {
-            using (Image<Bgr, Byte> blur = image.Clone())
-            {
-                CvInvoke.GaussianBlur(blur, blur, SIZE, SIGMAX);
-                UpdateHue(blur);
-            }
+            UpdateHue(image);
             if (backproject != null) backproject.Dispose();
             backproject = hist.BackProject(new Image<Gray, Byte>[] { hue });
 

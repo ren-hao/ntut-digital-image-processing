@@ -25,6 +25,7 @@ namespace control_server
 {
     public partial class Form1 : Form
     {
+        private enum TrackStatus { None, Left, Right };
         private const int SEND_PER_SEC = 50;
         private Server _server = null;
         // delegate object obj_delegate();
@@ -41,8 +42,10 @@ namespace control_server
         private int moneyInScreen = 0;
         private const int CAM_ID = 0;
         private String[] b = new String[] { "100_0", "200_0", "500_0", "1000_0", "2000_0" };
+        private double FPS = 24;
+        private long FPS_TICKS;
+        private long _lastFetchTime = 0;
 
-        private bool _shouldHandleMouseDown = false;
         private Point _clickPoint;
         private CamShiftTracking _trackingObjL = null;
         private CamShiftTracking _trackingObjR = null;
@@ -53,9 +56,10 @@ namespace control_server
         public Pen rectPenL = new Pen(Brushes.Red, 3);
         public Pen rectPenR = new Pen(Brushes.Blue, 3);
         private const bool USE_CAMERA = true;
+        private readonly Size SIZE = new Size(0, 0);
+        private const int SIGMAX = 3;
 
-
-        
+        private TrackStatus _trackStatus = TrackStatus.None;
 
         // property
 
@@ -155,13 +159,45 @@ namespace control_server
             data = null;
         }
 
+        private void ShowDraggingRect(Rectangle rect, Pen pen, Bitmap target)
+        {
+            if (rect != Rectangle.Empty)
+            {
+                Console.WriteLine(rect.ToString());
+                var ctx = Graphics.FromImage(target);
+                ctx.DrawRectangle(pen, rect);
+            }
+        }
+
+        private void UpdateTrackView(TrackBar bar, Rectangle rect, Pen pen, Bitmap target)
+        {
+            if (rect != Rectangle.Empty)
+            {
+                var ctx = Graphics.FromImage(target);
+                ctx.DrawRectangle(pen, rect);
+                int pointRectCnt = (rect.Left + rect.Width / 2);
+                int pointBoxCnt = WIDTH >> 1;
+                bar.Value = (int)Math.Round((double)(pointRectCnt - pointBoxCnt) / (WIDTH >> 1) * 100);
+            }
+            else
+            {
+                //bar.Value = 50;
+            }
+        }
+
         private void ProcessFrame(object sender, EventArgs e)
         {
+            long diff = DateTime.Now.Ticks - _lastFetchTime;
+            if (diff < FPS_TICKS)
+            {
+                Thread.Sleep((int)((FPS_TICKS - diff) / (1000 * 10)));
+            }
+
+            //Console.WriteLine("FPS: {0}", 1 / ((DateTime.Now.Ticks - _lastFetchTime) / (1000 * 1000 * 10f)));
+            Interlocked.Exchange(ref _lastFetchTime, DateTime.Now.Ticks);
+
             if (IsCapturing())
             {
-                if (!IsCapturing())
-                    return;
-
                 //取得網路攝影機的影像
                 _capture.Retrieve(_captureFrame);
                 CvInvoke.Resize(_captureFrame, _captureFrame, new Size(WIDTH, HEIGHT), 0, 0, Emgu.CV.CvEnum.Inter.Cubic);
@@ -171,49 +207,41 @@ namespace control_server
                     //if (!_isDetectorProcessing) _captureObservedFrame = _captureFrame.Clone();
                     using (Mat _sourceFrame = _captureFrame.Clone())
                     using (Image<Bgr, byte> sourceImage = _sourceFrame.ToImage<Bgr, Byte>())
+                    using (Image<Bgr, byte> blurImage = sourceImage.Clone())
                     {
+                        CvInvoke.GaussianBlur(blurImage, blurImage, SIZE, SIGMAX);
+
+                        if (_isMouseDown)
+                        {
+                            ShowDraggingRect(_drawRectL, rectPenL, _sourceFrame.Bitmap);
+                            ShowDraggingRect(_drawRectR, rectPenR, _sourceFrame.Bitmap);
+                        }
                         // runs on UI thread
                         _sourcePictureBox.Image = _sourceFrame.Bitmap;
 
-                        if (_drawRectL != Rectangle.Empty)
-                        {
-                            var ctx = Graphics.FromImage(_sourceFrame.Bitmap);
-                            ctx.DrawRectangle(rectPenL, _drawRectL);
-                            int pointRectCnt = (_drawRectL.Left + _drawRectL.Width / 2);
-                            int pointBoxCnt = _sourcePictureBox.Width / 2 ;
-                            _leftBar.Value = (int)Math.Round((double)(pointRectCnt - pointBoxCnt) / (_sourcePictureBox.Width / 2) * 100);
+                        if (_trackStatus != TrackStatus.None)
+                            SetTrackObject(blurImage);
 
-                        }
-
-                        if (_drawRectR != Rectangle.Empty)
-                        {
-                            var ctx = Graphics.FromImage(_sourceFrame.Bitmap);
-                            ctx.DrawRectangle(rectPenR, _drawRectR);
-                            int pointRectCnt = (_drawRectR.Left + _drawRectR.Width / 2);
-                            int pointBoxCnt = _sourcePictureBox.Width / 2;
-                            _rightBar.Value = (int)Math.Round((double)(pointRectCnt - pointBoxCnt) / (_sourcePictureBox.Width / 2) * 100);
-                        }
-
+                        
                         _sourcePictureBox.Refresh();
                         ///
                         ////////////////////////////////////////////////////////////////////////////////////
                         ///
                         ReleaseImage(ref _resultImage);
                         // TODO: Process image here
-                        //need modify
-                        //_resultImage = sourceImage.Clone();
 
-                        _shouldHandleMouseDown = true;
+                        if(_trackingObjL!=null || _trackingObjR != null)
+                        {
+                            _resultImage = sourceImage.Clone();
+                        }
 
                         if (_trackingObjL != null)
                         {
-                            lock (_trackingObjL)
-                                _drawRectL = _trackingObjL.Tracking(sourceImage);
+                            UpdateTrackView(_leftBar, _trackingObjL.Tracking(blurImage), rectPenL, _resultImage.Bitmap);
                         }
                         if (_trackingObjR != null)
                         {
-                            lock (_trackingObjR)
-                                _drawRectR = _trackingObjR.Tracking(sourceImage);
+                            UpdateTrackView(_rightBar, _trackingObjR.Tracking(blurImage), rectPenR, _resultImage.Bitmap);
                         }
 
                         if (_resultImage == null)
@@ -221,8 +249,6 @@ namespace control_server
                             _resultImage = sourceImage.Clone();
                         }
 
-                        //
-                        CvInvoke.GaussianBlur(_resultImage, _resultImage, new Size(0, 0), 3);
                         _resultPictureBox.Image = _resultImage.Bitmap;
                         _resultPictureBox.Refresh();
                     }
@@ -252,19 +278,23 @@ namespace control_server
                 _sourcePictureBox.Image = _resultPictureBox.Image = null;
                 _sourcePictureBox.Refresh();
                 _resultPictureBox.Refresh();
-                _shouldHandleMouseDown = false;
             }
             else
             {
                 _openCameraButton.Enabled = false;
                 _openCameraButton.Text = "停止攝影機";
-                if(USE_CAMERA) _capture = new VideoCapture(CAM_ID);
+                if (USE_CAMERA) {
+                    _capture = new VideoCapture(CAM_ID);
+                    FPS = 24;
+                }
                 else
                 {
                     string _videoPath = LoadVideoFile();
                     _capture = new VideoCapture(_videoPath);
+                    FPS = _capture.GetCaptureProperty(Emgu.CV.CvEnum.CapProp.Fps);
                 }
-                
+
+                FPS_TICKS = (long)(1000 * 1000 * 10 / FPS);
                 _capture.SetCaptureProperty(Emgu.CV.CvEnum.CapProp.AutoExposure, 0);
                 _capture.SetCaptureProperty(Emgu.CV.CvEnum.CapProp.FrameWidth, WIDTH);//_sourcePictureBox.Width
                 _capture.SetCaptureProperty(Emgu.CV.CvEnum.CapProp.FrameHeight, HEIGHT);// _sourcePictureBox.Height
@@ -273,7 +303,6 @@ namespace control_server
 
                 _captureFrame = new Mat();
                 _openCameraButton.Enabled = true;
-                _shouldHandleMouseDown = true;
 
                 if (_capture != null)
                 {
@@ -314,47 +343,55 @@ namespace control_server
 
         private void _sourcePictureBox_MouseDown(object sender, MouseEventArgs e)
         {
-            if (!_shouldHandleMouseDown) return;
+            if (!IsCapturing()) return;
             _clickPoint = _sourcePictureBox.PointToClient(Cursor.Position);
             _isMouseDown = true;
 
         }
-        private void SetTrackObject(bool right)
-        {
-            if (!_shouldHandleMouseDown) return;
 
-            if (_trackingObjL != null && !right) { _trackingObjL.Dispose(); _trackingObjL = null; }
-            if (_trackingObjR != null && right) { _trackingObjR.Dispose(); _trackingObjR = null; }
-            using (var tmpMat = _captureFrame.Clone())
-            using (var tmpImg = tmpMat.ToImage<Bgr, byte>())
-            {
-                if (_drawRectL != Rectangle.Empty && _trackingObjL == null)
-                {
-                    _trackingObjL = new CamShiftTracking(tmpImg, _drawRectL);
-                }
-                if (_drawRectR != Rectangle.Empty && _trackingObjR == null)
-                {
-                    _trackingObjR = new CamShiftTracking(tmpImg, _drawRectR);
-                }
-            }
+        private void SetTrackAndRect(ref CamShiftTracking tracking, ref Rectangle rect, CamShiftTracking targetTracking, Rectangle targetRect)
+        {
+            if (tracking != null)
+                tracking.Dispose();
+            tracking = targetTracking;
+            rect = targetRect;
+        }
+
+        private void SetTrackObject(Image<Bgr, byte> image)
+        {
+            if (_trackStatus==TrackStatus.None) return;
+            CamShiftTracking trackObj = null;
+            Rectangle rect = Rectangle.Empty;
+            
+            if (_trackStatus == TrackStatus.Left)
+                rect = _drawRectL;
+            else
+                rect = _drawRectR;
+
+            trackObj = new CamShiftTracking(image, rect);
+
+            if (_trackStatus == TrackStatus.Left)
+                SetTrackAndRect(ref _trackingObjL, ref _drawRectL, trackObj, Rectangle.Empty);
+            else
+                SetTrackAndRect(ref _trackingObjR, ref _drawRectR, trackObj, Rectangle.Empty);
+
+            _trackStatus = TrackStatus.None;
         }
 
         private void _sourcePictureBox_MouseUp(object sender, MouseEventArgs e)
         {
 
-            if (!_shouldHandleMouseDown || !_isMouseDown) return;
-            bool right = false;
-            if (e.Button == MouseButtons.Right) right = true;
-
-            SetTrackObject(right);
+            if (!_isMouseDown) return;
+            if (e.Button == MouseButtons.Right)
+                _trackStatus = TrackStatus.Right;
+            if (e.Button == MouseButtons.Left)
+                _trackStatus = TrackStatus.Left;
             _isMouseDown = false;
-            if (e.Button == MouseButtons.Left) _drawRectL = Rectangle.Empty;
-            if (e.Button == MouseButtons.Right) _drawRectR = Rectangle.Empty;
         }
 
         private void _sourcePictureBox_MouseMove(object sender, MouseEventArgs e)
         {
-            if (!_shouldHandleMouseDown || !_isMouseDown) return;
+            if (!_isMouseDown) return;
 
             Point curPoint = _sourcePictureBox.PointToClient(Cursor.Position);
             if (e.Button == MouseButtons.Left) _drawRectL = GetRectFromPoint(curPoint, _clickPoint);
@@ -376,7 +413,7 @@ namespace control_server
             DirectoryInfo dir = new DirectoryInfo(System.Windows.Forms.Application.StartupPath);
             dialog.Title = "Open a Video File";
             dialog.RestoreDirectory = true;
-            dialog.Filter = "Video File|*.mkv;*.mp4;*.avi;*.flv|MP4 (*.mp4)|*.mp4|MKV (*.mkv)|*.mkv|FLV (*.flv)|*.flv";
+            dialog.Filter = "Video File|*.mkv;*.mp4;*.avi;*.flv;*.mov";
 
             if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK && dialog.FileName != null)
             {
