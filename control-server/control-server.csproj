@@ -76,6 +76,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CamShiftTracking.cs" />
+    <Compile Include="CaptureExceptionHandler.cs" />
     <Compile Include="DrawMatches.cs" />
     <Compile Include="Form1.cs">
       <SubType>Form</SubType>
