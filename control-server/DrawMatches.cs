@@ -19,10 +19,11 @@ namespace control_server
     {
         private readonly int WIDTH;
         private readonly int HEIGHT;
+        private const int MODEL_PIXEL = 480;
 
         private int _moneyInScreen = 0;
         private readonly Dictionary<string, Mat> _modelImages;
-        private static String[] b = new String[] { "100_0", "200_0", "500_0", "1000_0", "2000_0" };
+        private static String[] b = new String[] { "100_0", "200_0", "500_0", "1000_0", "2000_0"};
 
         public DrawMatches(int width, int height)
         {
@@ -32,7 +33,7 @@ namespace control_server
             _modelImages = new Dictionary<string, Mat>();
             foreach(var path in b)
             {
-                var bill = "resources/" + path + ".jpg";
+                var bill = "resources/" + MODEL_PIXEL.ToString() + "/" +path + ".jpg";
                 Mat modelImage = CvInvoke.Imread(bill, ImreadModes.Grayscale);
                 CvInvoke.Resize(modelImage, modelImage, new Size(WIDTH, HEIGHT));
                 _modelImages.Add(path, modelImage);

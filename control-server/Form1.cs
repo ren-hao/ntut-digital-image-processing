@@ -278,10 +278,10 @@ namespace control_server
                         _moneyQueue.Dequeue();
                     _moneyQueue.Enqueue(_momeyMatches.GetMoneyInScreen());
 
-                    int change = GetMostItem() - _realMoney;
-                    //Console.WriteLine(GetMostItem());     
-                    if (change != 0) SendDonateMoney(change);
-                    _realMoney += change;
+                    //int change = GetMostItem() - _realMoney;
+                    Console.WriteLine(GetMostItem());     
+                    //if (change != 0) SendDonateMoney(change);
+                    //_realMoney += change;
                 }
             });
 
