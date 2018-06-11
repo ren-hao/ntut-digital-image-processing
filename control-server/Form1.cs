@@ -33,9 +33,9 @@ namespace control_server
         private Server _server = null;
         // delegate object obj_delegate();
         private const int PORT = 2229;
-        public const int WIDTH = 853;
-        public const int HEIGHT = 480;
-        private const long DETECT_MONEY_INTERVAL = 1000;
+        public const int WIDTH = 480;
+        public const int HEIGHT = 270;
+        private const long DETECT_MONEY_INTERVAL = 500;
         // property
         private volatile bool _isCapturing = false;
         private bool _isDetectorProcessing = false;
@@ -181,9 +181,8 @@ namespace control_server
             {
                 var ctx = Graphics.FromImage(target);
                 ctx.DrawRectangle(pen, rect);
-                int pointRectCnt = (rect.Left + rect.Width / 2);
-                int pointBoxCnt = WIDTH >> 1;
-                bar.Value = (int)Math.Round((double)(pointRectCnt - pointBoxCnt) / (WIDTH >> 1) * 100);
+                int pointRectCnt = (rect.Left + (rect.Width >> 1));
+                bar.Value = (int)(100f * pointRectCnt / WIDTH);
             }
             else
             {
@@ -391,9 +390,11 @@ namespace control_server
 
             if (_moneyQueue.Count == MAX_QUEUE_SIZE)
                 _moneyQueue.Dequeue();
-            _moneyQueue.Enqueue(_momeyMatches.GetMoneyInScreen());
 
-            Console.WriteLine(GetMostItem());
+            int now = _momeyMatches.GetMoneyInScreen();
+            _moneyQueue.Enqueue(now);
+
+            Console.WriteLine("{0}, {1}", now, GetMostItem());
         }
 
         private void _sourcePictureBox_MouseDown(object sender, MouseEventArgs e)
