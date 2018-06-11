@@ -24,7 +24,8 @@ namespace control_server
 
         private int _moneyInScreen = 0;
         private readonly Dictionary<string, Mat> _modelImages;
-        private readonly Dictionary<string, FeatureModel> _modelFeatures;
+        // private readonly Dictionary<string, FeatureModel> _modelFeatures;
+        private readonly Dictionary<string, Matcher> _modelMatcher;
         private static String[] b = new String[] { "100_0", "200_0", "500_0", "1000_0", "2000_0" };
 
         public DrawMatches(int width, int height)
@@ -33,14 +34,18 @@ namespace control_server
             HEIGHT = height;
 
             _modelImages = new Dictionary<string, Mat>();
-            _modelFeatures = new Dictionary<string, FeatureModel>();
+            // _modelFeatures = new Dictionary<string, FeatureModel>();
+            _modelMatcher = new Dictionary<string, Matcher>();
             foreach (var path in b)
             {
                 var bill = "resources/" + MODEL_PIXEL.ToString() + "/" +path + ".jpg";
                 Mat modelImage = CvInvoke.Imread(bill, ImreadModes.Grayscale);
                 // CvInvoke.Resize(modelImage, modelImage, new Size(WIDTH, HEIGHT));
                 _modelImages.Add(path, modelImage);
-                _modelFeatures.Add(path, ExtractFeatures(modelImage));
+                var matcher = new Matcher();
+                matcher.Add(ExtractFeatures(modelImage));
+                //
+                _modelMatcher.Add(path, matcher.Train());
             }
         }
 
@@ -68,22 +73,14 @@ namespace control_server
             out Mat homography
         )
         {
-            int k = 2;
-            double uniquenessThreshold = 0.60;
+            int k = 20;
+            double uniquenessThreshold = 0.80;
 
             //Stopwatch watch;
             homography = null;
-            var modelFeature = _modelFeatures[modelImagePath];
+            var matcher = _modelMatcher[modelImagePath];
             using (var observedFeature = ExtractFeatures(observedImage))
-
-            // You can use KDTree for faster matching with slight loss in accuracy
-            using (Emgu.CV.Flann.KdTreeIndexParams ip = new Emgu.CV.Flann.KdTreeIndexParams())
-            using (Emgu.CV.Flann.SearchParams sp = new SearchParams())
-            // 匹配器
-            using (DescriptorMatcher matcher = new FlannBasedMatcher(ip, sp))
             {
-                matcher.Add(modelFeature.Descriptors);
-
                 matcher.KnnMatch(observedFeature.Descriptors, matches, k, null);
                 using (var mask = new Mat(matches.Size, 1, DepthType.Cv8U, 1))
                 {
@@ -91,18 +88,26 @@ namespace control_server
                     Features2DToolbox.VoteForUniqueness(matches, uniquenessThreshold, mask);
 
                     int nonZeroCount = CvInvoke.CountNonZero(mask);
-                    if (nonZeroCount >= 4)
+                    if (nonZeroCount >= k / 2)
                     {
-                        //Console.WriteLine("1:"+nonZeroCount.ToString());
-                        nonZeroCount = Features2DToolbox.VoteForSizeAndOrientation(modelFeature.KeyPoints, observedFeature.KeyPoints,
+                        foreach (var modelFeature in matcher.Features)
+                        {
+                            nonZeroCount = Features2DToolbox.VoteForSizeAndOrientation(modelFeature.KeyPoints, observedFeature.KeyPoints,
                             matches, mask, 1.5, 20);
-                        //Console.WriteLine("2:" + nonZeroCount.ToString());
-                        if (nonZeroCount >= 15)
-                            homography = Features2DToolbox.GetHomographyMatrixFromMatchedFeatures(modelFeature.KeyPoints,
-                                observedFeature.KeyPoints, matches, mask, 2);
+                            //Console.WriteLine("2:" + nonZeroCount.ToString());
+                            if (nonZeroCount >= k)
+                            {
+                                homography = Features2DToolbox.GetHomographyMatrixFromMatchedFeatures(modelFeature.KeyPoints,
+                                    observedFeature.KeyPoints, matches, mask, 2);
+                                break;
+                            }
+                        }
+                        //Console.WriteLine("1:"+nonZeroCount.ToString());
+
                     }
                 }
             }
+            
         }
 
         /// <summary>
@@ -164,23 +169,19 @@ namespace control_server
             using(Mat observedImage = frame.Clone())
             {
                 CvInvoke.Resize(observedImage, observedImage, new Size(WIDTH, HEIGHT));
-                //for(int i = 0; i < b.Length; i++)
-                Parallel.For(0, b.Length, i =>
+                for(int i = 0; i < b.Length; i++)
+                //Parallel.For(0, b.Length, i =>
                 {
-                    try
-                    {
-                        detectedMoney[i] = 0;
-                        var modelImage = b[i];
-                        var ps = Draw(modelImage, observedImage);
+                    detectedMoney[i] = 0;
+                    var modelImage = b[i];
+                    var ps = Draw(modelImage, observedImage);
 
-                        pointArray[i] = ps;
-                        if (ps != null)
-                        {
-                            detectedMoney[i] = Convert.ToInt32(b[i].Split('_')[0]);
-                        }
+                    pointArray[i] = ps;
+                    if (ps != null)
+                    {
+                        detectedMoney[i] = Convert.ToInt32(b[i].Split('_')[0]);
                     }
-                    catch (Exception) { }
-                });
+                }//);
             }
 
             _moneyInScreen = detectedMoney.Sum();
@@ -201,11 +202,11 @@ namespace control_server
 
         public void Dispose()
         {
-            foreach (var v in _modelFeatures.Values)
-                v.Dispose();
+            //foreach (var v in _modelFeatures.Values)
+            //    v.Dispose();
             foreach (var v in _modelImages.Values)
                 v.Dispose();
-            _modelFeatures.Clear();
+            //_modelFeatures.Clear();
             _modelImages.Clear();
         }
 
@@ -224,6 +225,52 @@ namespace control_server
             {
                 KeyPoints.Dispose();
                 Descriptors.Dispose();
+            }
+        }
+
+        private class Matcher : IDisposable
+        {
+            private List<IDisposable> _disposables = new List<IDisposable>();
+            private List<FeatureModel> _models = new List<FeatureModel>();
+            private KdTreeIndexParams ip;
+            private SearchParams sp;
+            public readonly DescriptorMatcher matcher;
+
+            public IEnumerable<FeatureModel> Features => _models;
+
+            public Matcher()
+            {
+                ip = new Emgu.CV.Flann.KdTreeIndexParams();
+                sp = new SearchParams();
+                matcher = new FlannBasedMatcher(ip, sp);
+                _disposables.Add(ip);
+                _disposables.Add(sp);
+                _disposables.Add(matcher);
+            }
+
+            public void Add(FeatureModel feature)
+            {
+                _models.Add(feature);
+                _disposables.Add(feature);
+            }
+
+            public Matcher Train()
+            {
+                foreach(var m in _models)
+                    matcher.Add(m.Descriptors);
+
+                return this;
+            }
+
+            public void KnnMatch(Mat queryDescriptor, VectorOfVectorOfDMatch matches, int k, IInputArray mask)
+            {
+                matcher.KnnMatch(queryDescriptor, matches, k, mask);
+            }
+
+            public void Dispose()
+            {
+                foreach (var m in _disposables)
+                    m.Dispose();
             }
         }
     }

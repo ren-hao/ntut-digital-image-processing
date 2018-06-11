@@ -142,7 +142,10 @@ namespace control_server
 
         private void SendDonateMoney(int money)
         {
-            _server.SendToAll("{\"op\":\"donate\",\"data\":" + money + "}");
+            if (_server != null)
+            {
+                _server.SendToAll("{\"op\":\"donate\",\"data\":" + money + "}");
+            }
         }
 
         private void buttonDonate_Click(object sender, EventArgs e)
@@ -393,6 +396,12 @@ namespace control_server
 
             int now = _momeyMatches.GetMoneyInScreen();
             _moneyQueue.Enqueue(now);
+            int mostItemMeney = GetMostItem();
+            int change = mostItemMeney - _realMoney;
+            //Console.WriteLine(GetMostItem());     
+            if (change != 0) SendDonateMoney(change);
+            _realMoney += change;
+
 
             Console.WriteLine("{0}, {1}", now, GetMostItem());
         }
