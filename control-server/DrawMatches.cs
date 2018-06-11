@@ -167,15 +167,19 @@ namespace control_server
                 //for(int i = 0; i < b.Length; i++)
                 Parallel.For(0, b.Length, i =>
                 {
-                    detectedMoney[i] = 0;
-                    var modelImage = b[i];
-                    var ps = Draw(modelImage, observedImage);
-
-                    pointArray[i] = ps;
-                    if (ps != null)
+                    try
                     {
-                        detectedMoney[i] = Convert.ToInt32(b[i].Split('_')[0]);
+                        detectedMoney[i] = 0;
+                        var modelImage = b[i];
+                        var ps = Draw(modelImage, observedImage);
+
+                        pointArray[i] = ps;
+                        if (ps != null)
+                        {
+                            detectedMoney[i] = Convert.ToInt32(b[i].Split('_')[0]);
+                        }
                     }
+                    catch (Exception) { }
                 });
             }
 
