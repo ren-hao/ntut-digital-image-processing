@@ -21,6 +21,7 @@ using Emgu.CV.UI;
 using Emgu.Util;
 using System.IO;
 using System.ServiceModel.Dispatcher;
+using System.Drawing.Imaging;
 
 namespace control_server
 {
@@ -42,7 +43,6 @@ namespace control_server
         private VideoCapture _capture = null;
         private Image<Bgr, Byte>[] _resultImgObj = new Image<Bgr, byte>[1];
         private Mat _captureFrame = new Mat();
-        private Mat _captureObservedFrame = new Mat();
         private DrawMatches _momeyMatches = new DrawMatches(WIDTH, HEIGHT);
         private String[] b = new String[] { "100_0", "200_0", "500_0", "1000_0", "2000_0" };
         private double FPS = 24;
@@ -241,11 +241,13 @@ namespace control_server
                         ///
                         lock (_resultImgObj)
                         {
-                            ReleaseImage(ref _resultImgObj[0]);
-
-                            if (_trackingObjL != null || _trackingObjR != null)
+                            if (_resultImgObj[0] == null)
                             {
                                 _resultImgObj[0] = sourceImage.Clone();
+                            }
+                            else
+                            {
+                                sourceImage.CopyTo(_resultImgObj[0]);
                             }
 
                             if (_trackingObjL != null)
@@ -255,11 +257,6 @@ namespace control_server
                             if (_trackingObjR != null)
                             {
                                 UpdateTrackView(_rightBar, _trackingObjR.Tracking(blurImage), rectPenR, _resultImgObj[0].Bitmap);
-                            }
-
-                            if (_resultImgObj[0] == null)
-                            {
-                                _resultImgObj[0] = sourceImage.Clone();
                             }
 
                             if (!_isDetectorProcessing && moneyPoints != null)
@@ -280,8 +277,21 @@ namespace control_server
                                 }
                             }
 
-                            _resultPictureBox.Image = _resultImgObj[0].Bitmap;
+                            var bmp = _resultImgObj[0].Bitmap;
+                            _resultPictureBox.Image = bmp;
                             _resultPictureBox.Refresh();
+
+                            if (_server != null)
+                            {
+                                byte[] bytes = null;
+                                using (var ms = new MemoryStream())
+                                {
+                                    bmp.Save(ms, ImageFormat.Jpeg);
+                                    bytes = ms.ToArray();
+                                    _server.SendToAll(bytes);
+                                }
+                                bytes = null;
+                            }
                         }
                     }
                 });
@@ -290,6 +300,10 @@ namespace control_server
             else
             {
                 _sourcePictureBox.Image = _resultPictureBox.Image = null;
+                lock (_resultImgObj)
+                {
+                    ReleaseImage(ref _resultImgObj[0]);
+                }
             }
 
             //釋放繪圖資源->避免System.AccessViolationException
@@ -345,14 +359,6 @@ namespace control_server
                     _isCapturing = true;
                 }
             }
-        }
-
-        private void SetResultImage(Image<Bgr, byte> target)
-        {
-            _resultPictureBox.Image = null;
-            ReleaseImage(ref _resultImgObj[0]);
-            _resultPictureBox.Image = _resultImgObj[0].Bitmap;
-            _resultPictureBox.Refresh();
         }
 
         private int GetMostItem()
