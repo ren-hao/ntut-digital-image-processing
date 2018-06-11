@@ -27,13 +27,15 @@ namespace control_server
     public partial class Form1 : Form
     {
         private enum TrackStatus { None, Left, Right };
+        private const bool USE_CAMERA = true;
+        private const int CAM_ID = 0;
         private const int SEND_PER_SEC = 50;
         private Server _server = null;
         // delegate object obj_delegate();
         private const int PORT = 2229;
         public const int WIDTH = 853;
         public const int HEIGHT = 480;
-        private const long DETECT_MONEY_INTERVAL = 500;
+        private const long DETECT_MONEY_INTERVAL = 1000;
         // property
         private volatile bool _isCapturing = false;
         private bool _isDetectorProcessing = false;
@@ -41,7 +43,6 @@ namespace control_server
         private Image<Bgr, Byte>[] _resultImgObj = new Image<Bgr, byte>[1];
         private Mat _captureFrame = new Mat();
         private Mat _captureObservedFrame = new Mat();
-        private const int CAM_ID = 0;
         private DrawMatches _momeyMatches = new DrawMatches(WIDTH, HEIGHT);
         private String[] b = new String[] { "100_0", "200_0", "500_0", "1000_0", "2000_0" };
         private double FPS = 24;
@@ -65,6 +66,9 @@ namespace control_server
 
         private TrackStatus _trackStatus = TrackStatus.None;
 
+        private Queue<int> _moneyQueue = new Queue<int>();
+        private const int MAX_QUEUE_SIZE = 10;
+        private int _realMoney = 0;
         // property
 
         public Form1()
@@ -349,6 +353,26 @@ namespace control_server
             _resultPictureBox.Refresh();
         }
 
+        private int GetMostItem()
+        {
+            int largestValue = 0;
+            int largestKey = 0;
+            Dictionary<int, int> count = new Dictionary<int, int>();
+            foreach (int m in _moneyQueue)
+            {
+                if (count.ContainsKey(m))
+                    count[m] += 1;
+                else
+                    count.Add(m, 1);
+                if (count[m] > largestValue)
+                {
+                    largestValue = count[m];
+                    largestKey = m;
+                }
+            }
+            return largestKey;
+        }
+
         private void ProgressCapture(object sender, EventArgs e)
         {
             if (_isDetectorProcessing)
@@ -356,18 +380,20 @@ namespace control_server
             if (!IsCapturing())
                 return;
             using (Mat _sourceFrame = _captureFrame.Clone())
+            using (Mat _grayFrame = new Mat())
             {
                 _isDetectorProcessing = true;
-                using (Mat _grayFrame = new Mat())
-                {
-                    CvInvoke.CvtColor(_sourceFrame, _grayFrame, ColorConversion.Bgr2Gray);
-                    moneyPoints = _momeyMatches.DetectBillInScreen(_grayFrame);
-                    _isDetectorProcessing = false;
-                }
 
-                Console.WriteLine("Currently Point: " + _momeyMatches.GetMoneyInScreen().ToString());
+                CvInvoke.CvtColor(_sourceFrame, _grayFrame, ColorConversion.Bgr2Gray);
+                moneyPoints = _momeyMatches.DetectBillInScreen(_grayFrame);
+                _isDetectorProcessing = false;
             }
 
+            if (_moneyQueue.Count == MAX_QUEUE_SIZE)
+                _moneyQueue.Dequeue();
+            _moneyQueue.Enqueue(_momeyMatches.GetMoneyInScreen());
+
+            Console.WriteLine(GetMostItem());
         }
 
         private void _sourcePictureBox_MouseDown(object sender, MouseEventArgs e)

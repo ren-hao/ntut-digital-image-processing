@@ -20,6 +20,7 @@ namespace control_server
         private SIFT surf = new SIFT();
         private readonly int WIDTH;
         private readonly int HEIGHT;
+        private const int MODEL_PIXEL = 480;
 
         private int _moneyInScreen = 0;
         private readonly Dictionary<string, Mat> _modelImages;
@@ -35,7 +36,7 @@ namespace control_server
             _modelFeatures = new Dictionary<string, FeatureModel>();
             foreach (var path in b)
             {
-                var bill = "resources/" + path + ".jpg";
+                var bill = "resources/" + MODEL_PIXEL.ToString() + "/" +path + ".jpg";
                 Mat modelImage = CvInvoke.Imread(bill, ImreadModes.Grayscale);
                 // CvInvoke.Resize(modelImage, modelImage, new Size(WIDTH, HEIGHT));
                 _modelImages.Add(path, modelImage);
@@ -156,10 +157,8 @@ namespace control_server
 
         public Point[][] DetectBillInScreen(Mat frame)
         {
-            long matchTime;
             _moneyInScreen = 0;
             Point[][] pointArray = new Point[b.Length][];
-            Mat test = null;
 
             int[] detectedMoney = new int[b.Length];
             using(Mat observedImage = frame.Clone())
