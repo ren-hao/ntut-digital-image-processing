@@ -12,6 +12,7 @@ using Emgu.CV.Util;
 using Emgu.CV.UI;
 using System.Threading.Tasks;
 using System.Linq;
+using System.IO;
 
 namespace control_server
 {
@@ -26,8 +27,7 @@ namespace control_server
         private readonly Dictionary<string, Mat> _modelImages;
         // private readonly Dictionary<string, FeatureModel> _modelFeatures;
         private readonly Dictionary<string, Matcher> _modelMatcher;
-        private static String[] b = new String[] { "100_0", "200_0", "500_0", "1000_0", "2000_0" };
-
+        private static String[] b = new String[] { "100", "1000"};
         public DrawMatches(int width, int height)
         {
             WIDTH = width;
@@ -38,14 +38,18 @@ namespace control_server
             _modelMatcher = new Dictionary<string, Matcher>();
             foreach (var path in b)
             {
-                var bill = "resources/" + MODEL_PIXEL.ToString() + "/" +path + ".jpg";
-                Mat modelImage = CvInvoke.Imread(bill, ImreadModes.Grayscale);
-                // CvInvoke.Resize(modelImage, modelImage, new Size(WIDTH, HEIGHT));
-                _modelImages.Add(path, modelImage);
-                var matcher = new Matcher();
-                matcher.Add(ExtractFeatures(modelImage));
-                //
-                _modelMatcher.Add(path, matcher.Train());
+                int fileCount = Directory.GetFiles("resources/" + path + "/", "*.*", SearchOption.AllDirectories).Length;
+                for (int i = 0; i < fileCount; i++)
+                {
+                    var bill = "resources/" + path + "/" + i.ToString().PadLeft(4, '0') + ".png";
+                    Mat modelImage = CvInvoke.Imread(bill, ImreadModes.Grayscale);
+                    // CvInvoke.Resize(modelImage, modelImage, new Size(WIDTH, HEIGHT));
+                    var matcher = new Matcher();
+                    _modelImages.Add(path + "_" + i.ToString(), modelImage);
+                    matcher.Add(ExtractFeatures(modelImage));
+                    _modelMatcher.Add(path + "_" + i.ToString(), matcher.Train());
+                }
+                
             }
         }
 
@@ -172,14 +176,17 @@ namespace control_server
                 for(int i = 0; i < b.Length; i++)
                 //Parallel.For(0, b.Length, i =>
                 {
-                    detectedMoney[i] = 0;
-                    var modelImage = b[i];
-                    var ps = Draw(modelImage, observedImage);
-
-                    pointArray[i] = ps;
-                    if (ps != null)
+                    int fileCount = Directory.GetFiles("resources/" + b[i] + "/", "*.*", SearchOption.AllDirectories).Length;
+                    for (int j = 0; j < fileCount; j++)
                     {
-                        detectedMoney[i] = Convert.ToInt32(b[i].Split('_')[0]);
+                        detectedMoney[i] = 0;
+                        var modelImage = b[i] + "_" + j.ToString();
+                        var ps = Draw(modelImage, observedImage);
+                        pointArray[i] = ps;
+                        if (ps != null)
+                        {
+                            detectedMoney[i] = Convert.ToInt32(b[i].Split('_')[0]);
+                        }
                     }
                 }//);
             }
@@ -187,17 +194,6 @@ namespace control_server
             _moneyInScreen = detectedMoney.Sum();
             
             return pointArray;
-        }
-
-        private static Mat DrawRentengle(Point[][] point, Mat frame)
-        {
-            for (int i = 0; i < 5; i++)
-                if (point[i] != null)
-                    using (VectorOfPoint vp = new VectorOfPoint(point[i]))
-                    {
-                        CvInvoke.Polylines(frame, vp, true, new MCvScalar(255, 0, 255, 255), 5);
-                    }
-            return frame;
         }
 
         public void Dispose()

@@ -77,7 +77,6 @@ namespace control_server
             _timer.Interval = 1000 / SEND_PER_SEC;
             this.Closing += new System.ComponentModel.CancelEventHandler(Form1_Closing);
             _sourcePictureBox.Size = new Size(WIDTH, HEIGHT);
-
             // 用圖片當 observation
             //DrawMatches.DetectBillInScreen("resources/test1000.jpg", b, WIDTH, HEIGHT);
         }
