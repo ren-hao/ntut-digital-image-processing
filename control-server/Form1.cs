@@ -43,7 +43,7 @@ namespace control_server
         private VideoCapture _capture = null;
         private Image<Bgr, Byte>[] _resultImgObj = new Image<Bgr, byte>[1];
         private Mat _captureFrame = new Mat();
-        private DrawMatches _momeyMatches = new DrawMatches(WIDTH, HEIGHT);
+        private IMoneyDetector _momeyMatches = new DrawMatches(WIDTH, HEIGHT);
         private String[] b = new String[] { "100_0", "200_0", "500_0", "1000_0", "2000_0" };
         private double FPS = 24;
         private long FPS_TICKS;
