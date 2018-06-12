@@ -77,31 +77,23 @@ RealY = np.array(label_list)
 # In: 64 x 64 x 3, depth = 3
 modelD = Sequential()
 
-modelD.add(Conv2D(filters=32, strides=2, kernel_size=(3, 3), padding='same', input_shape=(IMG_H, IMG_W, 3)))
-modelD.add(BatchNormalization())
-modelD.add(LeakyReLU(0.2))
+modelD.add(Conv2D(filters=16 , kernel_size=(3, 3), padding='same', input_shape=(IMG_H, IMG_W, 3)))
+modelD.add(Dropout(0.25))
+modelD.add(MaxPooling2D(pool_size=(2, 2)))
 
-modelD.add(Conv2D(filters=64, strides=2, kernel_size=(3, 3), padding='same'))
-modelD.add(BatchNormalization())
-modelD.add(LeakyReLU(0.2))
-
-modelD.add(Conv2D(filters=128, strides=2, kernel_size=(3, 3), padding='same'))
-modelD.add(BatchNormalization())
-modelD.add(LeakyReLU(0.2))
-
-modelD.add(Conv2D(filters=256, strides=2, kernel_size=(5, 5), padding='same'))
-modelD.add(BatchNormalization())
-modelD.add(LeakyReLU(0.2))
-
-modelD.add(Conv2D(filters=512, strides=2, kernel_size=(5, 5), padding='same'))
-modelD.add(BatchNormalization())
-modelD.add(LeakyReLU(0.2))
-
-optimizerD = Adam(0.0002, 0.5)
-modelD.add(Dropout(0.2))
+modelD.add(Conv2D(filters=32, kernel_size=(3, 3), padding='same', activation='relu'))
+modelD.add(Dropout(0.25))
+modelD.add(MaxPooling2D(pool_size=(2, 2)))
+                  
 modelD.add(Flatten())
-modelD.add(Dense(label_cnt))
-modelD.add(Activation('softmax'))
+modelD.add(Dropout(0.25))
+
+modelD.add(Dense(512, activation='relu'))
+modelD.add(Dropout(0.25))
+
+modelD.add(Dense(label_cnt), activation='softmax'))
+optimizerD = Adam(0.0002, 0.5)
+
 modelD.compile(loss='binary_crossentropy', optimizer=optimizerD, metrics=['accuracy'])
 
 modelD.summary()
