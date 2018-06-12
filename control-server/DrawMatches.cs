@@ -16,7 +16,7 @@ using System.IO;
 
 namespace control_server
 {
-    public class DrawMatches : IDisposable
+    public class DrawMatches : IMoneyDetector
     {
         private SIFT surf = new SIFT();
         private readonly int WIDTH;
@@ -121,7 +121,7 @@ namespace control_server
         /// <param name="observedImage">The observed image</param>
         /// <param name="matchTime">The output total time for computing the homography matrix.</param>
         /// <returns>The model image and observed image, the matched features and homography projection.</returns>
-        public Point[] Draw(string modelImagePath, Mat observedImage)
+        private Point[] Draw(string modelImagePath, Mat observedImage)
         {
             Point[] points = null;
             Mat homography;
