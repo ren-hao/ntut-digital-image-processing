@@ -7,10 +7,8 @@ from os.path import join
 
 import numpy as np
 from PIL import Image
-from keras.layers import Dense, Conv2D, Activation, Dropout, Flatten, BatchNormalization
-from keras.layers.advanced_activations import LeakyReLU
+from keras.layers import Dense, Conv2D, Flatten, MaxPooling2D
 from keras.models import Sequential
-from keras.optimizers import Adam
 
 IMG_W, IMG_H = 360, 202
 model_label = ["100", "1000", "N"]
@@ -63,45 +61,45 @@ combined = list(zip(img_list, label_list))
 random.shuffle(combined)
 img_list[:], label_list[:] = zip(*combined)
 gc.collect()
-# print(img_list[1888])
-# print(label_list[1888])
 
-
-# RealY = np_utils.to_categorical(label_list,num_classes=len(model))
 RealX = np.asarray(img_list)
 RealY = np.array(label_list)
-# RealY
-
 
 # 鑑定器 D
 # In: 64 x 64 x 3, depth = 3
 modelD = Sequential()
 
-modelD.add(Conv2D(filters=16 , kernel_size=(3, 3), padding='same', input_shape=(IMG_H, IMG_W, 3)))
-modelD.add(Dropout(0.25))
+modelD.add(Conv2D(filters=16, kernel_size=(3, 3), padding='same', input_shape=(IMG_H, IMG_W, 3)))
 modelD.add(MaxPooling2D(pool_size=(2, 2)))
+# modelD.add(Dropout(0.2))
 
 modelD.add(Conv2D(filters=32, kernel_size=(3, 3), padding='same', activation='relu'))
-modelD.add(Dropout(0.25))
 modelD.add(MaxPooling2D(pool_size=(2, 2)))
-                  
+
+modelD.add(Conv2D(filters=64, kernel_size=(5, 5), padding='same', activation='relu'))
+modelD.add(MaxPooling2D(pool_size=(2, 2)))
+
+modelD.add(Conv2D(filters=128, kernel_size=(5, 5), padding='same', activation='relu'))
+modelD.add(MaxPooling2D(pool_size=(2, 2)))
+
 modelD.add(Flatten())
-modelD.add(Dropout(0.25))
 
-modelD.add(Dense(512, activation='relu'))
-modelD.add(Dropout(0.25))
+modelD.add(Dense(1024, activation='relu'))
 
-modelD.add(Dense(label_cnt), activation='softmax'))
-optimizerD = Adam(0.0002, 0.5)
+modelD.add(Dense(label_cnt, activation='sigmoid'))
 
-modelD.compile(loss='binary_crossentropy', optimizer=optimizerD, metrics=['accuracy'])
+modelD.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
 
 modelD.summary()
 
-modelD.fit(RealX, RealY, batch_size=256, epochs=20)
+modelD.fit(RealX, RealY, batch_size=130, epochs=20)
 
-modelD.save("momey.h5")
+modelD.save("money3.h5")
 
+"""
+test
+"""
+gc.collect()
 test_files = listdir("test")
 test_x = []
 

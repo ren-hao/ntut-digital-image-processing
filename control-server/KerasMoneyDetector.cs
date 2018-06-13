@@ -17,7 +17,7 @@ namespace control_server
         private readonly int WIDTH;
         private readonly int HEIGHT;
         private int _moneyInScreen = 0;
-        private const string SERVER_URL = "http://127.0.0.1:4329/det";
+        private const string SERVER_URL = "http://127.0.0.1:4329/money";
         private readonly HttpClient _client = new HttpClient();
 
         public KerasMoneyDetector(int width, int height)
@@ -29,18 +29,24 @@ namespace control_server
         public Point[][] DetectBillInScreen(Mat frame)
         {
             byte[] bytes = null;
-            using (var ms = new MemoryStream())
+            try
             {
-                frame.Bitmap.Save(ms, ImageFormat.Jpeg);
-                bytes = ms.ToArray();
-                HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, SERVER_URL);
-                var content = new ByteArrayContent(bytes);
-                content.Headers.Add("Content-Type", "image/jpeg");
-                content.Headers.Add("Content-Length", bytes.Length.ToString());
-                request.Content = content;
-                var ret = _client.SendAsync(request).Result;
-                var retStr = ret.Content.ReadAsStringAsync().Result;
-                _moneyInScreen = int.Parse(retStr);
+                using (var ms = new MemoryStream())
+                {
+                    frame.Bitmap.Save(ms, ImageFormat.Jpeg);
+                    bytes = ms.ToArray();
+                    HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, SERVER_URL);
+                    var content = new ByteArrayContent(bytes);
+                    content.Headers.Add("Content-Type", "image/jpeg");
+                    content.Headers.Add("Content-Length", bytes.Length.ToString());
+                    request.Content = content;
+                    var ret = _client.SendAsync(request).Result;
+                    var retStr = ret.Content.ReadAsStringAsync().Result;
+                    _moneyInScreen = int.Parse(retStr);
+                }
+            } catch(Exception)
+            {
+
             }
 
             return null;

@@ -43,6 +43,8 @@
             this._sourcePictureBox = new System.Windows.Forms.PictureBox();
             this._openCameraButton = new System.Windows.Forms.Button();
             this._resultPictureBox = new System.Windows.Forms.PictureBox();
+            this.checkBox1 = new System.Windows.Forms.CheckBox();
+            this.checkBox2 = new System.Windows.Forms.CheckBox();
             this.groupBox1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this._rightBar)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this._leftBar)).BeginInit();
@@ -124,7 +126,7 @@
             this.groupBox2.Enabled = false;
             this.groupBox2.Location = new System.Drawing.Point(12, 163);
             this.groupBox2.Name = "groupBox2";
-            this.groupBox2.Size = new System.Drawing.Size(360, 100);
+            this.groupBox2.Size = new System.Drawing.Size(360, 62);
             this.groupBox2.TabIndex = 2;
             this.groupBox2.TabStop = false;
             this.groupBox2.Text = "Donate";
@@ -185,18 +187,43 @@
             // _resultPictureBox
             // 
             this._resultPictureBox.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this._resultPictureBox.Location = new System.Drawing.Point(12, 289);
+            this._resultPictureBox.Location = new System.Drawing.Point(12, 231);
             this._resultPictureBox.Name = "_resultPictureBox";
             this._resultPictureBox.Size = new System.Drawing.Size(360, 203);
             this._resultPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
             this._resultPictureBox.TabIndex = 6;
             this._resultPictureBox.TabStop = false;
             // 
+            // checkBox1
+            // 
+            this.checkBox1.AutoSize = true;
+            this.checkBox1.Checked = true;
+            this.checkBox1.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.checkBox1.Location = new System.Drawing.Point(181, 18);
+            this.checkBox1.Name = "checkBox1";
+            this.checkBox1.Size = new System.Drawing.Size(60, 16);
+            this.checkBox1.TabIndex = 7;
+            this.checkBox1.Text = "Mirror?";
+            this.checkBox1.UseVisualStyleBackColor = true;
+            // 
+            // checkBox2
+            // 
+            this.checkBox2.AutoSize = true;
+            this.checkBox2.Location = new System.Drawing.Point(247, 19);
+            this.checkBox2.Name = "checkBox2";
+            this.checkBox2.Size = new System.Drawing.Size(43, 16);
+            this.checkBox2.TabIndex = 8;
+            this.checkBox2.Text = "Top";
+            this.checkBox2.UseVisualStyleBackColor = true;
+            this.checkBox2.CheckedChanged += new System.EventHandler(this.checkBox2_CheckedChanged);
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1185, 511);
+            this.Controls.Add(this.checkBox2);
+            this.Controls.Add(this.checkBox1);
             this.Controls.Add(this._resultPictureBox);
             this.Controls.Add(this._openCameraButton);
             this.Controls.Add(this._sourcePictureBox);
@@ -205,7 +232,6 @@
             this.Controls.Add(this.groupBox1);
             this.Name = "Form1";
             this.Text = "Form1";
-            this.TopMost = true;
             this.groupBox1.ResumeLayout(false);
             this.groupBox1.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this._rightBar)).EndInit();
@@ -214,6 +240,7 @@
             ((System.ComponentModel.ISupportInitialize)(this._sourcePictureBox)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this._resultPictureBox)).EndInit();
             this.ResumeLayout(false);
+            this.PerformLayout();
 
         }
 
@@ -233,6 +260,8 @@
         private System.Windows.Forms.PictureBox _sourcePictureBox;
         private System.Windows.Forms.Button _openCameraButton;
         private System.Windows.Forms.PictureBox _resultPictureBox;
+        private System.Windows.Forms.CheckBox checkBox1;
+        private System.Windows.Forms.CheckBox checkBox2;
     }
 }
 

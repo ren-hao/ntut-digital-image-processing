@@ -170,10 +170,11 @@ namespace control_server
             Point[][] pointArray = new Point[b.Length][];
 
             int[] detectedMoney = new int[b.Length];
-            using(Mat observedImage = frame.Clone())
+            using(Mat observedGrayImage = new Mat())
             {
-                CvInvoke.Resize(observedImage, observedImage, new Size(WIDTH, HEIGHT));
-                for(int i = 0; i < b.Length; i++)
+                CvInvoke.CvtColor(frame, observedGrayImage, ColorConversion.Bgr2Gray);
+
+                for (int i = 0; i < b.Length; i++)
                 //Parallel.For(0, b.Length, i =>
                 {
                     int fileCount = Directory.GetFiles("resources/" + b[i] + "/", "*.*", SearchOption.AllDirectories).Length;
@@ -181,7 +182,7 @@ namespace control_server
                     {
                         detectedMoney[i] = 0;
                         var modelImage = b[i] + "_" + j.ToString();
-                        var ps = Draw(modelImage, observedImage);
+                        var ps = Draw(modelImage, observedGrayImage);
                         pointArray[i] = ps;
                         if (ps != null)
                         {

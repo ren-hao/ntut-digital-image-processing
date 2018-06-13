@@ -43,7 +43,7 @@ namespace control_server
         private VideoCapture _capture = null;
         private Image<Bgr, Byte>[] _resultImgObj = new Image<Bgr, byte>[1];
         private Mat _captureFrame = new Mat();
-        private IMoneyDetector _momeyMatches = new DrawMatches(WIDTH, HEIGHT);
+        private IMoneyDetector _momeyMatches = new KerasMoneyDetector(WIDTH, HEIGHT);
         private String[] b = new String[] { "100_0", "200_0", "500_0", "1000_0", "2000_0" };
         private double FPS = 24;
         private long FPS_TICKS;
@@ -218,78 +218,85 @@ namespace control_server
                 {
                     if (!IsCapturing()) return;
                     //if (!_isDetectorProcessing) _captureObservedFrame = _captureFrame.Clone();
-                    using (Mat _sourceFrame = _captureFrame.Clone())
-                    using (Image<Bgr, byte> sourceImage = _sourceFrame.ToImage<Bgr, Byte>())
-                    using (Image<Bgr, byte> blurImage = sourceImage.Clone())
+                    using (Mat _sourceFrame = new Mat())
                     {
-                        CvInvoke.Blur(blurImage, blurImage, SIZE, Point.Empty);
+                        if (checkBox1.Checked)
+                            CvInvoke.Flip(_captureFrame, _sourceFrame, FlipType.Horizontal);
+                        else
+                            _captureFrame.CopyTo(_sourceFrame);
 
-                        if (_isMouseDown)
+                        using (Image<Bgr, byte> sourceImage = _sourceFrame.ToImage<Bgr, Byte>())
+                        using (Image<Bgr, byte> blurImage = sourceImage.Clone())
                         {
-                            ShowDraggingRect(_drawRectL, rectPenL, sourceImage.Bitmap);
-                            ShowDraggingRect(_drawRectR, rectPenR, sourceImage.Bitmap);
-                        }
-                        // runs on UI thread
-                        _sourcePictureBox.Image = sourceImage.Bitmap;
-                        _sourcePictureBox.Refresh();
+                            CvInvoke.Blur(blurImage, blurImage, SIZE, Point.Empty);
 
-                        if (_trackStatus != TrackStatus.None)
-                            SetTrackObject(blurImage);
-                        ///
-                        ////////////////////////////////////////////////////////////////////////////////////
-                        ///
-                        lock (_resultImgObj)
-                        {
-                            if (_resultImgObj[0] == null)
+                            if (_isMouseDown)
                             {
-                                _resultImgObj[0] = sourceImage.Clone();
+                                ShowDraggingRect(_drawRectL, rectPenL, sourceImage.Bitmap);
+                                ShowDraggingRect(_drawRectR, rectPenR, sourceImage.Bitmap);
                             }
-                            else
-                            {
-                                sourceImage.CopyTo(_resultImgObj[0]);
-                            }
+                            // runs on UI thread
+                            _sourcePictureBox.Image = sourceImage.Bitmap;
+                            _sourcePictureBox.Refresh();
 
-                            if (_trackingObjL != null)
+                            if (_trackStatus != TrackStatus.None)
+                                SetTrackObject(blurImage);
+                            ///
+                            ////////////////////////////////////////////////////////////////////////////////////
+                            ///
+                            lock (_resultImgObj)
                             {
-                                UpdateTrackView(_leftBar, _trackingObjL.Tracking(blurImage), rectPenL, _resultImgObj[0].Bitmap);
-                            }
-                            if (_trackingObjR != null)
-                            {
-                                UpdateTrackView(_rightBar, _trackingObjR.Tracking(blurImage), rectPenR, _resultImgObj[0].Bitmap);
-                            }
-
-                            if (!_isDetectorProcessing && moneyPoints != null)
-                            {
-                                var ctx = Graphics.FromImage(_resultImgObj[0].Bitmap);
-                                foreach (var ps in moneyPoints)
+                                if (_resultImgObj[0] == null)
                                 {
-                                    if (ps != null)
+                                    _resultImgObj[0] = sourceImage.Clone();
+                                }
+                                else
+                                {
+                                    sourceImage.CopyTo(_resultImgObj[0]);
+                                }
+
+                                if (_trackingObjL != null)
+                                {
+                                    UpdateTrackView(_leftBar, _trackingObjL.Tracking(blurImage), rectPenL, _resultImgObj[0].Bitmap);
+                                }
+                                if (_trackingObjR != null)
+                                {
+                                    UpdateTrackView(_rightBar, _trackingObjR.Tracking(blurImage), rectPenR, _resultImgObj[0].Bitmap);
+                                }
+
+                                if (!_isDetectorProcessing && moneyPoints != null)
+                                {
+                                    var ctx = Graphics.FromImage(_resultImgObj[0].Bitmap);
+                                    foreach (var ps in moneyPoints)
                                     {
-                                        var xQuery = from p in ps select p.X;
-                                        var yQuery = from p in ps select p.Y;
-                                        var minX = xQuery.Min();
-                                        var minY = yQuery.Min();
-                                        var maxX = xQuery.Max();
-                                        var maxY = yQuery.Max();
-                                        ctx.DrawRectangle(moneyPen, minX, minY, maxX - minX, maxY - minY);
+                                        if (ps != null)
+                                        {
+                                            var xQuery = from p in ps select p.X;
+                                            var yQuery = from p in ps select p.Y;
+                                            var minX = xQuery.Min();
+                                            var minY = yQuery.Min();
+                                            var maxX = xQuery.Max();
+                                            var maxY = yQuery.Max();
+                                            ctx.DrawRectangle(moneyPen, minX, minY, maxX - minX, maxY - minY);
+                                        }
                                     }
                                 }
-                            }
 
-                            var bmp = _resultImgObj[0].Bitmap;
-                            _resultPictureBox.Image = bmp;
-                            _resultPictureBox.Refresh();
+                                var bmp = _resultImgObj[0].Bitmap;
+                                _resultPictureBox.Image = bmp;
+                                _resultPictureBox.Refresh();
 
-                            if (_server != null)
-                            {
-                                byte[] bytes = null;
-                                using (var ms = new MemoryStream())
+                                if (_server != null)
                                 {
-                                    bmp.Save(ms, ImageFormat.Jpeg);
-                                    bytes = ms.ToArray();
-                                    _server.SendToAll(bytes);
+                                    byte[] bytes = null;
+                                    using (var ms = new MemoryStream())
+                                    {
+                                        bmp.Save(ms, ImageFormat.Jpeg);
+                                        bytes = ms.ToArray();
+                                        _server.SendToAll(bytes);
+                                    }
+                                    bytes = null;
                                 }
-                                bytes = null;
                             }
                         }
                     }
@@ -387,12 +394,9 @@ namespace control_server
             if (!IsCapturing())
                 return;
             using (Mat _sourceFrame = _captureFrame.Clone())
-            using (Mat _grayFrame = new Mat())
             {
                 _isDetectorProcessing = true;
-
-                CvInvoke.CvtColor(_sourceFrame, _grayFrame, ColorConversion.Bgr2Gray);
-                moneyPoints = _momeyMatches.DetectBillInScreen(_grayFrame);
+                moneyPoints = _momeyMatches.DetectBillInScreen(_sourceFrame);
                 _isDetectorProcessing = false;
             }
 
@@ -499,5 +503,9 @@ namespace control_server
 
         }
 
+        private void checkBox2_CheckedChanged(object sender, EventArgs e)
+        {
+            this.TopMost = checkBox2.Checked;
+        }
     }
 }
