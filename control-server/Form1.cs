@@ -143,7 +143,9 @@ namespace control_server
         {
             if (_server != null)
             {
-                _server.SendToAll("{\"op\":\"donate\",\"data\":" + money + "}");
+                var magic = money;
+                magic *= Math.Abs(money / 100);
+                _server.SendToAll("{\"op\":\"donate\",\"data\":" + magic + "}");
             }
         }
 

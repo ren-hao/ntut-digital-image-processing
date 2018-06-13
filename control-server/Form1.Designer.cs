@@ -45,6 +45,7 @@
             this._resultPictureBox = new System.Windows.Forms.PictureBox();
             this.checkBox1 = new System.Windows.Forms.CheckBox();
             this.checkBox2 = new System.Windows.Forms.CheckBox();
+            this.label3 = new System.Windows.Forms.Label();
             this.groupBox1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this._rightBar)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this._leftBar)).BeginInit();
@@ -164,9 +165,9 @@
             // _sourcePictureBox
             // 
             this._sourcePictureBox.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this._sourcePictureBox.Location = new System.Drawing.Point(378, 12);
+            this._sourcePictureBox.Location = new System.Drawing.Point(378, 74);
             this._sourcePictureBox.Name = "_sourcePictureBox";
-            this._sourcePictureBox.Size = new System.Drawing.Size(853, 480);
+            this._sourcePictureBox.Size = new System.Drawing.Size(640, 360);
             this._sourcePictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
             this._sourcePictureBox.TabIndex = 4;
             this._sourcePictureBox.TabStop = false;
@@ -217,11 +218,21 @@
             this.checkBox2.UseVisualStyleBackColor = true;
             this.checkBox2.CheckedChanged += new System.EventHandler(this.checkBox2_CheckedChanged);
             // 
+            // label3
+            // 
+            this.label3.AutoSize = true;
+            this.label3.Location = new System.Drawing.Point(378, 59);
+            this.label3.Name = "label3";
+            this.label3.Size = new System.Drawing.Size(41, 12);
+            this.label3.TabIndex = 9;
+            this.label3.Text = "Camera";
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(1185, 511);
+            this.ClientSize = new System.Drawing.Size(1038, 453);
+            this.Controls.Add(this.label3);
             this.Controls.Add(this.checkBox2);
             this.Controls.Add(this.checkBox1);
             this.Controls.Add(this._resultPictureBox);
@@ -262,6 +273,7 @@
         private System.Windows.Forms.PictureBox _resultPictureBox;
         private System.Windows.Forms.CheckBox checkBox1;
         private System.Windows.Forms.CheckBox checkBox2;
+        private System.Windows.Forms.Label label3;
     }
 }
 
